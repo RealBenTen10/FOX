@@ -14,7 +14,7 @@ import torch
 torch.manual_seed(seed)
 
 # Set the encoding type here: choose 'boolean', 'label', 'index', or 'one_hot'
-encoding_type = 'label'
+encoding_type = 'one_hot'
 
 # Change the dataset_name to create a new trained model (.h5 file)
 dataset_name = 'sepsis_cases_1'
