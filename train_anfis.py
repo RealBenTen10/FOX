@@ -6,14 +6,37 @@ import experimental
 import load_model
 from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 import numpy as np
+import pandas as pd
 import pickle as pk
 seed = 123
 np.random.seed(seed)
 import torch
 torch.manual_seed(seed)
 
-class ClassifierDataset(Dataset):
+# Set the encoding type here: choose 'boolean', 'label', 'index', or 'one_hot'
+encoding_type = 'label'
 
+# Change the dataset_name to create a new trained model (.h5 file)
+dataset_name = 'sepsis_cases_1'
+# Available datasets:
+# 'sepsis_cases_1'
+# 'sepsis_cases_2'
+# 'sepsis_cases_4'
+# 'bpic2011_f1'
+# 'bpic2011_f2'
+# 'bpic2011_f3'
+# 'bpic2011_f4'
+# 'bpic2012_accepted'
+# 'bpic2012_declined'
+# 'bpic2012_cancelled'
+# 'production'
+
+
+seed = 123
+np.random.seed(seed)
+torch.manual_seed(seed)
+
+class ClassifierDataset(Dataset):
     def __init__(self, X_data, y_data):
         self.X_data = X_data
         self.y_data = y_data
@@ -24,59 +47,90 @@ class ClassifierDataset(Dataset):
     def __len__(self):
         return len(self.X_data)
 
-def make_one_hot(data, num_categories, dtype=torch.float):
-    num_entries = len(data)
-    # Convert data to a torch tensor of indices, with extra dimension:
-    cats = torch.Tensor(data).long().unsqueeze(1)
-    # Now convert this to one-hot representation:
-    y = torch.zeros((num_entries, num_categories), dtype=dtype)\
-        .scatter(1, cats, 1)
-    y.requires_grad = True
-    return y
+def boolean_encoding(data):
+    """Convert categorical data into boolean representation."""
+    unique_classes = np.unique(data)
+    encoded = np.array([[1 if val == cls else 0 for cls in unique_classes] for val in data])
+    return torch.tensor(encoded, dtype=torch.float)
 
-def get_data_one_hot(dataset, n_feature, batch_size, columns_sel):
-    import pandas as pd
-    dataframe = pd.read_csv('dataset/' + dataset + '/' + dataset + '_train.csv', header=0, sep=',')
+def label_encoding(data):
+    """Convert categories to integer labels."""
+    labels = {val: idx for idx, val in enumerate(np.unique(data))}
+    encoded = np.array([labels[val] for val in data])
+    return torch.tensor(encoded, dtype=torch.long)
 
+def index_encoding(data):
+    """Convert categories into their index position."""
+    unique_classes = np.unique(data)
+    indices = {val: idx for idx, val in enumerate(unique_classes)}
+    encoded = np.array([indices[val] for val in data])
+    return torch.tensor(encoded, dtype=torch.long)
+
+def one_hot_encoding(data, num_categories):
+    """Convert data into one-hot representation."""
+    data_tensor = torch.tensor(data, dtype=torch.long).unsqueeze(1)
+    one_hot = torch.zeros(len(data), num_categories, dtype=torch.float).scatter(1, data_tensor, 1)
+    return one_hot
+
+def get_data(dataset, n_feature, batch_size, columns_sel):
+    dataframe = pd.read_csv(f'dataset/{dataset}/{dataset}_train.csv', header=0, sep=',')
     columns_sel.append('Classification')
-    
     dataframe = dataframe[columns_sel]
 
     array = dataframe.values
-    d_data = array[:, 0:len(dataframe.columns) - 1]
-    d_target = array[:, len(dataframe.columns) - 1]
+    d_data = array[:, :-1]
+    d_target = array[:, -1]
 
-    X_train, X_val, y_train, y_val = train_test_split(d_data, d_target, test_size=0.2, stratify=d_target, random_state=69, shuffle=True)
+    X_train, X_val, y_train, y_val = train_test_split(
+        d_data, d_target, test_size=0.2, stratify=d_target, random_state=69, shuffle=True
+    )
 
-    train_dataset = ClassifierDataset(torch.from_numpy(X_train).float(), torch.from_numpy(y_train).long())
-    val_dataset = ClassifierDataset(torch.from_numpy(X_val).float(), torch.from_numpy(y_val).long())
+    # Encode targets based on the chosen encoding type
+    if encoding_type == 'boolean':
+        y_train_encoded = boolean_encoding(y_train)
+    elif encoding_type == 'label':
+        y_train_encoded = label_encoding(y_train)
+    elif encoding_type == 'index':
+        y_train_encoded = index_encoding(y_train)
+    elif encoding_type == 'one_hot':
+        num_categories = len(np.unique(d_target))
+        y_train_encoded = one_hot_encoding(y_train, num_categories)
+    else:
+        raise ValueError(f"Unsupported encoding type: {encoding_type}")
 
-    x = torch.Tensor(X_train)
-    y = make_one_hot(y_train, num_categories=2)
-    td = TensorDataset(x, y)
+    train_dataset = ClassifierDataset(torch.tensor(X_train, dtype=torch.float), y_train_encoded)
+    val_dataset = ClassifierDataset(torch.tensor(X_val, dtype=torch.float), torch.tensor(y_val, dtype=torch.long))
 
-    return DataLoader(train_dataset, batch_size=batch_size, shuffle=False), DataLoader(val_dataset, batch_size=batch_size), DataLoader(td, batch_size=batch_size, shuffle=False), columns_sel
+    return (
+        DataLoader(train_dataset, batch_size=batch_size, shuffle=True),
+        DataLoader(val_dataset, batch_size=batch_size),
+        columns_sel
+    )
 
 def train(dataset, n_feature, learning_rate, bs, columns_sel):
-    train_data, val_data, x, columns_sel = get_data_one_hot(dataset, n_feature, bs, columns_sel)
-    x_train, y_train = x.dataset.tensors
-    model = make_anfis(x_train, num_mfs=3, num_out=2, hybrid=False)
+    train_data, val_data, columns_sel = get_data(dataset, n_feature, bs, columns_sel)
+    x_train, y_train = next(iter(train_data))
+
+    model = make_anfis(x_train, num_mfs=3, num_out=len(torch.unique(y_train)), hybrid=False)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    model, score = experimental.train_anfis_cat(model, train_data, val_data, optimizer,100)
+
+    model, score = experimental.train_anfis_cat(model, train_data, val_data, optimizer, 100)
+    torch.save(model, 'streamlit_fox/models/model_' + dataset + '.h5')
     torch.save(model, 'models/model_' + dataset + '.h5')
     load_model.metrics(dataset, columns_sel)
     return model
 
 def opt(dataset, n_feature, learning_rate, bs, file_name, columns_sel):
-    train_data, val_data, x, columns_sel = get_data_one_hot(dataset, n_feature, bs, columns_sel)
-    x_train, y_train = x.dataset.tensors
+    train_data, val_data, columns_sel = get_data(dataset, n_feature, bs, columns_sel)
+    x_train, y_train = next(iter(train_data))
 
-    model = make_anfis(x_train, num_mfs=3, num_out=2, hybrid=False)
+    model = make_anfis(x_train, num_mfs=3, num_out=len(torch.unique(y_train)), hybrid=False)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    model, scores = experimental.train_anfis_cat(model, train_data, val_data, optimizer,100)
+
+    model, scores = experimental.train_anfis_cat(model, train_data, val_data, optimizer, 100)
     return model, scores
 
-dataset_name = 'sepsis_cases_1'
+
 
 if dataset_name == 'sepsis_cases_1':
         columns_sel = ['Diagnose', 'mean_open_cases', 'Age', 'std_Leucocytes', 'std_CRP']#sepsis_cases_1
