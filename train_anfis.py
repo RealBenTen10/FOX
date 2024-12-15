@@ -150,7 +150,6 @@ def opt(dataset, n_feature, learning_rate, bs, file_name, columns_sel):
     model, scores = experimental.train_anfis_cat(model, train_data, val_data, optimizer,epochs, encoding_type, sigmoid)
     return model, scores
 
-dataset_name = 'sepsis_cases_1'
 
 if dataset_name == 'sepsis_cases_1':
         columns_sel = ['Diagnose', 'mean_open_cases', 'Age', 'std_Leucocytes', 'std_CRP']#sepsis_cases_1
