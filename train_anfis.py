@@ -19,7 +19,7 @@ encoding_types = [
     'one_hot'
 ]
 # pick the encoding of your choice
-encoding_type = encoding_types[1]
+encoding_type = encoding_types[3]
 
 # Change the dataset_name to create a new trained model (.h5 file)
 # Available datasets:
@@ -41,8 +41,8 @@ dataset_name = dataset_names[0]
 
 # Set some parameters
 # Set the number of epochs
-epochs = 10
-sigmoid = True  # use sigmoid instead of softmax
+epochs = 50
+sigmoid = False  # use sigmoid instead of softmax
 test_size = 0.2
 random_state = 69
 batch_size = 250
@@ -150,7 +150,7 @@ def opt(dataset, n_feature, learning_rate, bs, file_name, columns_sel):
     model, scores = experimental.train_anfis_cat(model, train_data, val_data, optimizer,epochs, encoding_type, sigmoid)
     return model, scores
 
-dataset_name = 'sepsis_cases_1'
+#dataset_name = 'sepsis_cases_1'
 
 if dataset_name == 'sepsis_cases_1':
         columns_sel = ['Diagnose', 'mean_open_cases', 'Age', 'std_Leucocytes', 'std_CRP']#sepsis_cases_1
@@ -177,5 +177,6 @@ elif dataset_name == 'production':
 
 params = pk.load(open('params/'+dataset_name+".p", "rb"))
 n_features = len(columns_sel)
-# model = train(dataset_name, n_features, params.get('lr'), params.get('batch_size'), columns_sel[:n_features])
-model = train(dataset_name, n_features, learning_rate, batch_size, columns_sel[:n_features])
+print("Dataset_name: ", dataset_name)
+model = train(dataset_name, n_features, params.get('lr'), params.get('batch_size'), columns_sel[:n_features])
+#model = train(dataset_name, n_features, learning_rate, batch_size, columns_sel[:n_features])

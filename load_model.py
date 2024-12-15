@@ -67,8 +67,6 @@ def metrics(dataset_name, columns_sel):
         if len(target_test) == 1:
             print("skip")
         else:
-            print("Inside: " + str(index_len) + ";" + str(len(target_test)) + ";" + str(
-                roc_auc_score(target_test, pred[:, 1])) + "\n")
             f = open(dataset_name + "_results.csv", "w")
             f.write("" + str(index_len) + ";" + str(len(target_test)) + ";" + str(
                 roc_auc_score(target_test, pred[:, 1])) + "\n")

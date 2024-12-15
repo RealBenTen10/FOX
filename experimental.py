@@ -69,11 +69,17 @@ def multi_acc(y_pred, y_test, sigmoid):
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
+from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score
+
 def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding_type, sigmoid):
     print(device)
     print("Begin training.")
     accuracy_stats = {'train': [], "val": []}
     loss_stats = {'train': [], "val": []}
+    precision_stats = {'train': [], "val": []}
+    recall_stats = {'train': [], "val": []}
+    f1_stats = {'train': [], "val": []}
+    auc_stats = {'train': [], "val": []}
     criterion = torch.nn.CrossEntropyLoss()
     best_loss = np.inf
     best_epoch = 0
@@ -82,7 +88,12 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
     for e in tqdm(range(1, EPOCHS + 1)):
         train_epoch_loss = 0
         train_epoch_acc = 0
+        train_epoch_precision = 0
+        train_epoch_recall = 0
+        train_epoch_f1 = 0
+        train_epoch_auc = 0
 
+        # Training loop
         for X_train_batch, y_train_batch in train_loader:
             X_train_batch, y_train_batch = X_train_batch.to(device), y_train_batch.to(device)
             optimizer.zero_grad()
@@ -92,19 +103,39 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
             train_loss = criterion(y_train_pred, encoded_labels)
             train_acc = multi_acc(y_train_pred, y_train_batch, sigmoid)
 
+            # Predictions and Metrics
+            y_pred_prob = torch.sigmoid(y_train_pred) if sigmoid else F.softmax(y_train_pred, dim=1)
+            y_pred_binary = (y_pred_prob[:, 1] > 0.5).cpu().numpy()
+            y_true = y_train_batch.cpu().numpy()
+
+            train_precision = precision_score(y_true, y_pred_binary, zero_division=0)
+            train_recall = recall_score(y_true, y_pred_binary, zero_division=0)
+            train_f1 = f1_score(y_true, y_pred_binary)
+            train_auc = roc_auc_score(y_true, y_pred_prob[:, 1].detach().cpu().numpy())
+
+
+            # Backpropagation
             train_loss.backward()
             optimizer.step()
 
             train_epoch_loss += train_loss.item()
             train_epoch_acc += train_acc.item()
+            train_epoch_precision += train_precision
+            train_epoch_recall += train_recall
+            train_epoch_f1 += train_f1
+            train_epoch_auc += train_auc
 
+        # Validation loop
         with torch.no_grad():
             val_epoch_loss = 0
             val_epoch_acc = 0
-            model.fit_coeff(
-                X_train_batch.float(),
-                encoding_function(y_train_batch, num_categories=2)
-            )
+            val_epoch_precision = 0
+            val_epoch_recall = 0
+            val_epoch_f1 = 0
+            val_epoch_auc = 0
+
+            model.fit_coeff(X_train_batch.float(), encoding_function(y_train_batch, num_categories=2))
+
             for X_val_batch, y_val_batch in val_loader:
                 X_val_batch, y_val_batch = X_val_batch.to(device), y_val_batch.to(device)
 
@@ -113,14 +144,38 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
                 val_loss = criterion(y_val_pred, encoded_labels)
                 val_acc = multi_acc(y_val_pred, y_val_batch, sigmoid)
 
+                # Predictions and Metrics
+                y_val_prob = torch.sigmoid(y_val_pred) if sigmoid else F.softmax(y_val_pred, dim=1)
+                y_val_binary = (y_val_prob[:, 1] > 0.5).cpu().numpy()
+                y_val_true = y_val_batch.cpu().numpy()
+
+                val_precision = precision_score(y_val_true, y_val_binary, zero_division=0)
+                val_recall = recall_score(y_val_true, y_val_binary, zero_division=0)
+                val_f1 = f1_score(y_val_true, y_val_binary)
+                val_auc = roc_auc_score(y_val_true, y_val_prob[:, 1].cpu().numpy())
+
                 val_epoch_loss += val_loss.item()
                 val_epoch_acc += val_acc.item()
+                val_epoch_precision += val_precision
+                val_epoch_recall += val_recall
+                val_epoch_f1 += val_f1
+                val_epoch_auc += val_auc
 
+        # Logging metrics
         loss_stats['train'].append(train_epoch_loss / len(train_loader))
         loss_stats['val'].append(val_epoch_loss / len(val_loader))
         accuracy_stats['train'].append(train_epoch_acc / len(train_loader))
         accuracy_stats['val'].append(val_epoch_acc / len(val_loader))
+        precision_stats['train'].append(train_epoch_precision / len(train_loader))
+        precision_stats['val'].append(val_epoch_precision / len(val_loader))
+        recall_stats['train'].append(train_epoch_recall / len(train_loader))
+        recall_stats['val'].append(val_epoch_recall / len(val_loader))
+        f1_stats['train'].append(train_epoch_f1 / len(train_loader))
+        f1_stats['val'].append(val_epoch_f1 / len(val_loader))
+        auc_stats['train'].append(train_epoch_auc / len(train_loader))
+        auc_stats['val'].append(val_epoch_auc / len(val_loader))
 
+        # Early stopping
         if (val_epoch_loss / len(val_loader)) < best_loss:
             best_loss = (val_epoch_loss / len(val_loader))
             best_epoch = e
@@ -128,8 +183,16 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
         if e - best_epoch > 10:
             print(best_epoch)
             break
+
         print(
-            f'Epoch {e + 0:03}: | Train Loss: {train_epoch_loss / len(train_loader):.8f} | Val Loss: {val_epoch_loss / len(val_loader):.8f} | Train Acc: {train_epoch_acc / len(train_loader):.8f}| Val Acc: {val_epoch_acc / len(val_loader):.8f}')
+            f'Epoch {e:03}: | Train Loss: {train_epoch_loss / len(train_loader):.4f} | Val Loss: {val_epoch_loss / len(val_loader):.4f} | '
+            f'Train Acc: {train_epoch_acc / len(train_loader):.4f} | Val Acc: {val_epoch_acc / len(val_loader):.4f} | '
+            f'Train Prec: {train_epoch_precision / len(train_loader):.4f} | Val Prec: {val_epoch_precision / len(val_loader):.4f} | '
+            f'Train Rec: {train_epoch_recall / len(train_loader):.4f} | Val Rec: {val_epoch_recall / len(val_loader):.4f} | '
+            f'Train F1: {train_epoch_f1 / len(train_loader):.4f} | Val F1: {val_epoch_f1 / len(val_loader):.4f} | '
+            f'Train AUC: {train_epoch_auc / len(train_loader):.4f} | Val AUC: {val_epoch_auc / len(val_loader):.4f}'
+        )
 
     return best_model, loss_stats['val']
+
 
