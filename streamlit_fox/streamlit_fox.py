@@ -86,19 +86,24 @@ if submit:
             i = i + 1
         print(list_val)
         list_val = np.array(list_val)
+        # load model
         model = torch.load('models/model_'+dataset_name + '.h5')
+        # make prediction
         pred = model(torch.Tensor([list_val]))
+        # get result
         pred2 = torch.argmax(pred, 1)
-
+        # ?
         pred2 = pred2.detach().numpy()
-
+        # make human readable
         if pred2 == 0:
             res = 'regular'
         else:
             res = 'deviant'
-
+        # more human readable
         st.text('This trace is '+ str(res))
+        # ?
         rule, firerule, index_rule = load_weights.get_fire_strength(model,pred2)
+        # even more
         st.write('Because:')  # df, err, func, keras!
 
         list_max_index =[]
