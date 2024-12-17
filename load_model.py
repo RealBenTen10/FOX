@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
 
-def metrics(dataset_name, columns_sel, device):
+def metrics(dataset_name, columns_sel, encoding, sigmoid, mfs_type, device):
     model = torch.load('models/model_' + dataset_name + '.h5')
 
     pd_len = pd.read_csv("dataset/" + dataset_name + "/len_test" + dataset_name + ".csv", header=0, sep=',')
@@ -24,7 +24,8 @@ def metrics(dataset_name, columns_sel, device):
     y_test = pd.read_csv("dataset/" + dataset_name + "/" + dataset_name + "_test.csv")
     y_test = y_test[y_test.columns[-1]]
 
-    f = open(dataset_name + "_results.csv", "w")
+    sigmoid_str = "sigmoid" if sigmoid else "softmax"
+    f = open(f"results/{dataset_name}_{encoding}_{sigmoid_str}_{str(mfs_type)}_results.csv", "w")
     f.write("SELECTED COLUMNS;" + "\n")
     for element in columns_sel:
         f.write(element + "\n")
@@ -67,7 +68,7 @@ def metrics(dataset_name, columns_sel, device):
         if len(target_test) == 1:
             print("skip")
         else:
-            f = open(dataset_name + "_results.csv", "w")
+            #f = open(dataset_name + "_results.csv", "w")
             f.write("" + str(index_len) + ";" + str(len(target_test)) + ";" + str(
                 roc_auc_score(target_test, pred[:, 1])) + "\n")
             auc_list.append(roc_auc_score(target_test, pred[:, 1]))

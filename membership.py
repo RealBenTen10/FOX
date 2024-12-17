@@ -5,6 +5,7 @@
     @author: James Power <james.power@mu.ie> Apr 12 18:13:10 2019
 """
 
+import enum
 import torch
 import numpy as np
 seed = 123
@@ -12,6 +13,18 @@ np.random.seed(seed)
 torch.manual_seed(seed)
 #from anfis import AnfisNet
 from anfis_Mandami import AnfisNet
+
+
+class MfsType(enum.Enum):
+    Sigmoid = 0
+    DSigmoid = 1
+    Gauss = 2
+    Bell = 3
+    Triangular = 4
+    Trapezoid = 5
+    
+    def __str__(self):
+        return self.name
 
 
 def _mk_param(val):
@@ -201,6 +214,58 @@ def make_trap_mfs(width, slope, clist):
     return [TrapezoidalMembFunc.symmetric(width, slope, c) for c in clist]
 
 
+class SigmoidMembFunc(torch.nn.Module):
+    '''
+        Sigmoid membership function
+    '''
+    def __init__(self, alpha, c):
+        super(SigmoidMembFunc, self).__init__()
+        self.register_parameter('alpha', _mk_param(alpha))
+        self.register_parameter('c', _mk_param(c))
+
+    def forward(self, x):
+        '''
+        Calculate membership value using the sigmoid formula:
+        u(x) = 1 / (1 + exp(-alpha * (x - c)))
+        '''
+        return torch.sigmoid(self.alpha * (x - self.c))
+    
+    def pretty(self):
+        return 'SigmoidMembFunc alpha={} c={}'.format(self.alpha.item(), self.c.item())
+    
+
+def make_sigmoid_mfs(alpha, c_list):
+    '''
+        Return a list of sigmoid membership functions
+    '''
+    return [SigmoidMembFunc(alpha, c) for c in c_list]
+
+
+class DsigMembFunc(torch.nn.Module):
+    '''
+        Difference of two sigmoids; defined by two centers and slopes.
+    '''
+    def __init__(self, alpha, beta, c1, c2):
+        super(DsigMembFunc, self).__init__()
+        self.register_parameter('alpha', _mk_param(alpha))
+        self.register_parameter('beta', _mk_param(beta))
+        self.register_parameter('c1', _mk_param(c1))
+        self.register_parameter('c2', _mk_param(c2))
+
+    def forward(self, x):
+        '''
+            u(x) = sigmoid(alpha * (x - c1)) - sigmoid(beta * (x - c2))
+        '''
+        return torch.sigmoid(self.alpha * (x - self.c1)) - torch.sigmoid(self.beta * (x - self.c2))
+    
+    def pretty(self):
+        return f"DsigMembFunc alpha={self.alpha.item()}, beta={self.beta.item()}, c1={self.c1.item()}, c2={self.c2.item()}"
+    
+
+def make_dsig_mfs(alpha, beta, clist1, clist2):
+    return [DsigMembFunc(alpha, beta, c1, c2) for c1, c2 in zip(clist1, clist2)]
+
+
 # Make the classes available via (controlled) reflection:
 get_class_for = {n: globals()[n]
                  for n in ['BellMembFunc',
@@ -210,7 +275,41 @@ get_class_for = {n: globals()[n]
                            ]}
 
 
-def make_anfis(x, device, num_mfs=5, num_out=1, hybrid=True):
+def make_mfs(num_mfs, minval, maxval, range, mfs_type):
+    if mfs_type == MfsType.Sigmoid:
+        alpha = 10 / range
+        clist = torch.linspace(minval, maxval, num_mfs).tolist()
+        return make_sigmoid_mfs(alpha, clist)
+    elif mfs_type == MfsType.Bell:
+        a = range / num_mfs
+        b = 2  # Slope control (arbitrary default)
+        clist = torch.linspace(minval, maxval, num_mfs).tolist()
+        return make_bell_mfs(a, b, clist)
+    elif mfs_type == MfsType.Triangular:
+        width = range / num_mfs
+        clist = torch.linspace(minval, maxval, num_mfs).tolist()
+        return make_tri_mfs(width, clist)
+    elif mfs_type == MfsType.Trapezoid:
+        slope = range / (2 * num_mfs)  # Example slope
+        width = range / num_mfs
+        clist = torch.linspace(minval, maxval, num_mfs).tolist()
+        return make_trap_mfs(width, slope, clist)
+    elif mfs_type == MfsType.DSigmoid:
+        alpha = 10 / range  # Control the steepness of the sigmoids
+        beta = alpha
+        clist1 = torch.linspace(minval, maxval - range / num_mfs, num_mfs).tolist()
+        clist2 = torch.linspace(minval + range / num_mfs, maxval, num_mfs).tolist()
+        return make_dsig_mfs(alpha, beta, clist1, clist2)
+    elif mfs_type == MfsType.Gauss or not mfs_type:
+        sigma = range / num_mfs
+        mulist = torch.linspace(0, maxval, num_mfs).tolist()
+        return make_gauss_mfs(sigma, mulist)
+    else:
+        assert False,\
+            f"Unsupported MF {mfs_type}"
+
+
+def make_anfis(x, device, num_mfs=5, num_out=1, hybrid=True, mfs_type=MfsType.Gauss):
     '''
         Make an ANFIS model, auto-calculating the (Gaussian) MFs.
         I need the x-vals to calculate a range and spread for the MFs.
@@ -228,9 +327,7 @@ def make_anfis(x, device, num_mfs=5, num_out=1, hybrid=True):
     ranges = maxvals-minvals
     invars = []
     for i in range(num_invars):
-        sigma = ranges[i] / num_mfs
-        mulist = torch.linspace(0, maxvals[i], num_mfs).tolist()
-        invars.append(('x{}'.format(i), make_gauss_mfs(sigma, mulist)))
+        invars.append(('x{}'.format(i), make_mfs(num_mfs, minvals[i], maxvals[i], ranges[i], mfs_type)))
         #print(invars)
         #exit()
     outvars = ['y{}'.format(i) for i in range(num_out)]
