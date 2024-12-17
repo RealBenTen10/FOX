@@ -10,6 +10,7 @@ os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
 
 def metrics(dataset_name, columns_sel, encoding, sigmoid, mfs_type, device):
+    # Instead of loading the model, just use the model as input?
     model = torch.load('models/model_' + dataset_name + '.h5')
 
     pd_len = pd.read_csv("dataset/" + dataset_name + "/len_test" + dataset_name + ".csv", header=0, sep=',')
@@ -81,10 +82,19 @@ def metrics(dataset_name, columns_sel, encoding, sigmoid, mfs_type, device):
 
     auc_list = np.asarray(auc_list)
     weights = np.asarray(weights)
-
     auc_weight = np.sum((auc_list * weights)) / np.sum(weights)
     f1_weight = np.sum((f1_score_list * weights)) / np.sum(weights)
-
+    '''
+    # Print some stuff
+    print("auc_list: ", auc_list)
+    print("weights: ", weights)
+    print("auc_weight: ", auc_weight)
+    print("------------------------------------")
+    print("f1_score_list: ", f1_score_list)
+    print("weights: ", weights)
+    print("f1_weight: ", f1_weight)
+    # Print some stuff
+    '''
     print("---WEIGHTED METRICS---")
     print("ROC_AUC_SCORE weighted: %.2f" % auc_weight)
 

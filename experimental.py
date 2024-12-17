@@ -45,14 +45,17 @@ def get_encoding_function(encoding_type):
         return make_index_encoding
     elif encoding_type == "boolean":
         return make_boolean_encoding
+    # add more if wanted
     else:
         raise ValueError(f"Unknown encoding type: {encoding_type}")
 
-# Training with dynamic encoding selection
+# Choose device - don't change this
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-
+# Get Accuracy
+# Here the predicted values are tested against the true values
+# For sepsis_cases_1 the model always predicts 0 which results in the same accuracy each epoch
 def multi_acc(y_pred, y_test, sigmoid):
     # Sigmoid function instead of softmax
     if sigmoid:

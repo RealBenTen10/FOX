@@ -19,7 +19,7 @@ encoding_types = [
     'one_hot'
 ]
 # pick the encoding of your choice
-encoding_type = encoding_types[0]
+encoding_type = encoding_types[3]
 
 # Change the dataset_name to create a new trained model (.h5 file)
 # Available datasets:
@@ -37,7 +37,28 @@ dataset_names = [
     'production'
 ]
 # pick the dataset of your choice
-dataset_name = dataset_names[0]
+dataset_name = dataset_names[1]
+
+# the parameters have the same order as the dataset_names
+# so parans[0] has the parameters lr and batch_size of sepsis_cases_1
+# params_list[X][0] is learning_rate
+# params_list[X][1] is batch_size
+params_list = [
+    [8.878741925407075e-05, 256],
+    [0.00992592926325457, 256],
+    [0.0005634190655247415, 128],
+    [0.00015056471839384854, 256],
+    [0.000999999999999913, 1024],
+    [0.00992592926325457, 256],
+    [0.008766616117947781, 128],
+    [0.003375590702146598, 512],
+    [0.004182032486569149, 512],
+    [8.878741925407075e-05, 256],
+    [0.0005634190655247415, 128]
+]
+params = params_list[1]
+
+
 
 mfs_types = [
     MfsType.Bell,
@@ -46,18 +67,18 @@ mfs_types = [
     MfsType.Sigmoid,
     MfsType.Triangular
 ]
-mfs_type = mfs_types[0]
+mfs_type = mfs_types[2]
 
 # Set some parameters
-# Set the number of epochs
-epochs = 10
-sigmoid = True  # use sigmoid instead of softmax
-test_size = 0.2
-random_state = 69
-batch_size = 250
-learning_rate = 0.001
+epochs = 100            # Set the number of epochs
+sigmoid = False         # use sigmoid instead of softmax
+test_size = 0.2         # Set the test_size
+random_state = 69       # Set the random state
+learning_rate = params[0]   # Set the learning rate
+batch_size = params[1]        # Set the batch_size
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # Set the device - don't change this
+num_mfs = 3             # Set number of membership functions?
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # not used?
 seed = 123
@@ -145,14 +166,20 @@ def get_data(dataset, n_feature, batch_size, columns_sel):
 def train(dataset, n_feature, learning_rate, bs, columns_sel, encoding_type, sigmoid, mfs_type):
     train_data, val_data, x, columns_sel = get_data(dataset, n_feature, bs, columns_sel)
     x_train, y_train = x.dataset.tensors
+    # Create ANFIS model
     model = make_anfis(x_train, device, num_mfs=3, num_out=2, hybrid=False)
+    # Create optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    # Train ANFIS model (using optimizer Adam)
     model, score = experimental.train_anfis_cat(model, train_data, val_data, optimizer, epochs, encoding_type, sigmoid, device)
+    # Save the trained model
     torch.save(model, 'models/model_' + dataset + '.h5')
     torch.save(model, 'streamlit_fox/models/model_' + dataset + '.h5')
+    # Get metrics for the model
     load_model.metrics(dataset, columns_sel, encoding_type, sigmoid, mfs_type, device)
     return model
 
+# Not used?
 def opt(dataset, n_feature, learning_rate, bs, file_name, columns_sel):
     train_data, val_data, x, columns_sel = get_data(dataset, n_feature, bs, columns_sel)
     x_train, y_train = x.dataset.tensors
@@ -162,6 +189,7 @@ def opt(dataset, n_feature, learning_rate, bs, file_name, columns_sel):
     model, scores = experimental.train_anfis_cat(model, train_data, val_data, optimizer,epochs, encoding_type, sigmoid)
     return model, scores
 
+# Get features for model training and streamlit view
 def get_columns_sel(dataset_name):
     if dataset_name == 'sepsis_cases_1':
         columns_sel = ['Diagnose', 'mean_open_cases', 'Age', 'std_Leucocytes', 'std_CRP']#sepsis_cases_1
@@ -188,10 +216,13 @@ def get_columns_sel(dataset_name):
 
     return columns_sel
 
-params = pk.load(open('params/'+dataset_name+".p", "rb"))
-columns_sel = get_columns_sel(dataset_name)
-n_features = len(columns_sel)
-# model = train(dataset_name, n_features, params.get('lr'), params.get('batch_size'), columns_sel[:n_features])
 
-for mfs_type in mfs_types:
-    model = train(dataset_name, n_features, learning_rate, batch_size, columns_sel[:n_features], encoding_type, sigmoid, mfs_type)
+# select columns
+columns_sel = get_columns_sel(dataset_name)
+# number of features selected (leads to the selection of all?)
+n_features = len(columns_sel)
+# train model here
+model = train(dataset_name, n_features, learning_rate, batch_size, columns_sel[:n_features], encoding_type, sigmoid, mfs_type)
+# train models there
+#for mfs_type in mfs_types:
+#    model = train(dataset_name, n_features, learning_rate, batch_size, columns_sel[:n_features], encoding_type, sigmoid, mfs_type)
