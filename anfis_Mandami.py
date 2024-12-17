@@ -146,13 +146,13 @@ class AntecedentLayer(torch.nn.Module):
         Form the 'rules' by taking all possible combinations of the MFs
         for each variable. Forward pass then calculates the fire-strengths.
     '''
-    def __init__(self, varlist):
+    def __init__(self, varlist, device):
         super(AntecedentLayer, self).__init__()
         # Count the (actual) mfs for each variable:
         mf_count = [var.num_mfs for var in varlist]
         # Now make the MF indices for each rule:
         mf_indices = itertools.product(*[range(n) for n in mf_count])
-        self.mf_indices = torch.tensor(list(mf_indices))
+        self.mf_indices = torch.tensor(list(mf_indices), device=device)
         # mf_indices.shape is n_rules * n_in
 
     def num_rules(self):
@@ -202,14 +202,15 @@ class ConsequentLayer(torch.nn.Module):
         Hybrid learning, so use MSE (not BP) to adjust coefficients.
         Hence, coeffs are no longer parameters for backprop.
     '''
-    def __init__(self, d_in, d_rule, d_out, n_mfdefs, n_terms):
+    def __init__(self, d_in, d_rule, d_out, n_mfdefs, n_terms, device):
         super(ConsequentLayer, self).__init__()
         c_shape = torch.Size([d_rule, d_out, 1])
 
-        self._coeff = torch.zeros(c_shape, dtype=dtype, requires_grad=True)
+        self._coeff = torch.zeros(c_shape, dtype=dtype, requires_grad=True, device=device)
         self.d_out = d_out
         self.n_mfdefs = n_mfdefs
         self.n_terms = n_terms
+        self.device = device
 
     @property
     def coeff(self):
@@ -282,7 +283,7 @@ class ConsequentLayer(torch.nn.Module):
         '''
         # Append 1 to each list of input vals, for the constant term:
         #x_plus = torch.cat([x, torch.ones(x.shape[0], 1)], dim=1)
-        x_plus = torch.ones(len(x), 1)
+        x_plus = torch.ones(len(x), 1, device=self.device)
 
         # Need to switch dimansion for the multipy, then switch back:
         y_pred = torch.matmul(self.coeff, x_plus.t())
@@ -295,8 +296,8 @@ class PlainConsequentLayer(ConsequentLayer):
         A linear layer to represent the TSK consequents.
         Not hybrid learning, so coefficients are backprop-learnable parameters.
     '''
-    def __init__(self, *params):
-        super(PlainConsequentLayer, self).__init__(*params)
+    def __init__(self, *params, device):
+        super(PlainConsequentLayer, self).__init__(*params, device=device)
         self.register_parameter('coefficients',
                                 torch.nn.Parameter(self._coeff))
 
@@ -341,11 +342,12 @@ class AnfisNet(torch.nn.Module):
         The forward pass maps inputs to outputs based on current settings,
         and then fit_coeff will adjust the TSK coeff using LSE.
     '''
-    def __init__(self, description, invardefs, outvarnames, n_terms, hybrid=True):
+    def __init__(self, description, invardefs, outvarnames, n_terms, device, hybrid=True):
         super(AnfisNet, self).__init__()
         self.description = description
         self.outvarnames = outvarnames
         self.n_terms = n_terms
+        self.device = device
         self.hybrid = hybrid
 
         varnames = [v for v, _ in invardefs]
@@ -358,12 +360,12 @@ class AnfisNet(torch.nn.Module):
         self.num_in = len(invardefs)
         self.num_rules = np.prod([len(mfs) for _, mfs in invardefs])
         if self.hybrid:
-            cl = ConsequentLayer(self.num_in, self.num_rules, self.num_out, self.n_mfdefs, self.n_terms)
+            cl = ConsequentLayer(self.num_in, self.num_rules, self.num_out, self.n_mfdefs, self.n_terms, device)
         else:
-            cl = PlainConsequentLayer(self.num_in, self.num_rules, self.num_out, self.n_mfdefs, self.n_terms)
+            cl = PlainConsequentLayer(self.num_in, self.num_rules, self.num_out, self.n_mfdefs, self.n_terms, device=device)
         self.layer = torch.nn.ModuleDict(OrderedDict([
             ('fuzzify', FuzzifyLayer(mfdefs, varnames)),
-            ('rules', AntecedentLayer(mfdefs)),
+            ('rules', AntecedentLayer(mfdefs, device)),
             # normalisation layer is just implemented as a function.
             ('consequent', cl),
             # weighted-sum layer is just implemented as a function.

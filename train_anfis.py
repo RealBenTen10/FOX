@@ -19,7 +19,7 @@ encoding_types = [
     'one_hot'
 ]
 # pick the encoding of your choice
-encoding_type = encoding_types[1]
+encoding_type = encoding_types[0]
 
 # Change the dataset_name to create a new trained model (.h5 file)
 # Available datasets:
@@ -47,6 +47,8 @@ test_size = 0.2
 random_state = 69
 batch_size = 250
 learning_rate = 0.001
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # not used?
 seed = 123
@@ -134,13 +136,14 @@ def get_data(dataset, n_feature, batch_size, columns_sel):
 def train(dataset, n_feature, learning_rate, bs, columns_sel):
     train_data, val_data, x, columns_sel = get_data(dataset, n_feature, bs, columns_sel)
     x_train, y_train = x.dataset.tensors
-    model = make_anfis(x_train, num_mfs=3, num_out=2, hybrid=False)
+    model = make_anfis(x_train, device, num_mfs=3, num_out=2, hybrid=False)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    model, score = experimental.train_anfis_cat(model, train_data, val_data, optimizer,epochs, encoding_type, sigmoid)
+    model, score = experimental.train_anfis_cat(model, train_data, val_data, optimizer, epochs, encoding_type, sigmoid, device)
     torch.save(model, 'models/model_' + dataset + '.h5')
     torch.save(model, 'streamlit_fox/models/model_' + dataset + '.h5')
-    load_model.metrics(dataset, columns_sel)
+    load_model.metrics(dataset, columns_sel, device)
     return model
+
 def opt(dataset, n_feature, learning_rate, bs, file_name, columns_sel):
     train_data, val_data, x, columns_sel = get_data(dataset, n_feature, bs, columns_sel)
     x_train, y_train = x.dataset.tensors

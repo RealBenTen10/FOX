@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
 
-def metrics(dataset_name, columns_sel):
+def metrics(dataset_name, columns_sel, device):
     model = torch.load('models/model_' + dataset_name + '.h5')
 
     pd_len = pd.read_csv("dataset/" + dataset_name + "/len_test" + dataset_name + ".csv", header=0, sep=',')
@@ -56,13 +56,13 @@ def metrics(dataset_name, columns_sel):
             j = j + 1
         conv_test = np.asarray(image_test)
         conv_test_for_check = np.asarray(image_test)
-        conv_test = torch.tensor(conv_test, dtype=torch.float)
+        conv_test = torch.tensor(conv_test, dtype=torch.float, device=device)
 
         pred = model(torch.Tensor(conv_test))
         pred2 = torch.argmax(pred, 1)
 
-        pred = pred.detach().numpy()
-        pred2 = pred2.detach().numpy()
+        pred = pred.detach().cpu().numpy()
+        pred2 = pred2.detach().cpu().numpy()
 
         if len(target_test) == 1:
             print("skip")

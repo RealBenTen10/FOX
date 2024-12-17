@@ -210,7 +210,7 @@ get_class_for = {n: globals()[n]
                            ]}
 
 
-def make_anfis(x, num_mfs=5, num_out=1, hybrid=True):
+def make_anfis(x, device, num_mfs=5, num_out=1, hybrid=True):
     '''
         Make an ANFIS model, auto-calculating the (Gaussian) MFs.
         I need the x-vals to calculate a range and spread for the MFs.
@@ -235,7 +235,7 @@ def make_anfis(x, num_mfs=5, num_out=1, hybrid=True):
         #exit()
     outvars = ['y{}'.format(i) for i in range(num_out)]
     #model = AnfisNet('Simple classifier', invars, outvars, hybrid=hybrid)#versione originale
-    model = AnfisNet('Simple classifier', invars, outvars, n_terms, hybrid=hybrid)
+    model = AnfisNet('Simple classifier', invars, outvars, n_terms, device, hybrid=hybrid)
     #import experimental
     #experimental.plot_all_mfs(model, x)
     return model

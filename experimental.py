@@ -10,28 +10,28 @@ torch.manual_seed(seed)
 dtype = torch.float
 
 # One_hot encoding
-def make_one_hot(data, num_categories, dtype=torch.float):
+def make_one_hot(data, device, num_categories, dtype=torch.float):
     num_entries = len(data)
     cats = data.clone().detach().long().unsqueeze(1)  # Properly clone and detach input tensor
-    y = torch.zeros((num_entries, num_categories), dtype=dtype).scatter(1, cats, 1)
+    y = torch.zeros((num_entries, num_categories), dtype=dtype, device=device).scatter(1, cats, 1)
     y.requires_grad = True
     return y
 
 # Label Encoding
-def make_label_encoding(data, num_categories=None, dtype=torch.float):
+def make_label_encoding(data, device, num_categories=None, dtype=torch.float):
     y = data.clone().detach().long()  # Properly clone and detach input tensor
     return y
 
 # Index Encoding
-def make_index_encoding(data, num_categories=None, dtype=torch.float):
+def make_index_encoding(data, device, num_categories=None, dtype=torch.float):
     y = data.clone().detach().long()  # Properly clone and detach input tensor
     return y
 
 # Boolean Encoding
-def make_boolean_encoding(data, num_categories, dtype=torch.float):
+def make_boolean_encoding(data, device, num_categories, dtype=torch.float):
     num_entries = len(data)
     cats = data.clone().detach().long().unsqueeze(1)  # Clone and detach input tensor
-    y = torch.zeros((num_entries, num_categories), dtype=dtype).scatter(1, cats, 1)
+    y = torch.zeros((num_entries, num_categories), dtype=dtype, device=device).scatter(1, cats, 1)
     y = y.to(dtype)  # Ensure the tensor is of floating-point type
     return y
 
@@ -71,7 +71,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score
 
-def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding_type, sigmoid):
+def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding_type, sigmoid, device):
     print(device)
     print("Begin training.")
     accuracy_stats = {'train': [], "val": []}
@@ -99,7 +99,7 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
             optimizer.zero_grad()
 
             y_train_pred = model(X_train_batch)
-            encoded_labels = encoding_function(y_train_batch, num_categories=2)
+            encoded_labels = encoding_function(y_train_batch, device, num_categories=2)
             train_loss = criterion(y_train_pred, encoded_labels)
             train_acc = multi_acc(y_train_pred, y_train_batch, sigmoid)
 
@@ -134,13 +134,13 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
             val_epoch_f1 = 0
             val_epoch_auc = 0
 
-            model.fit_coeff(X_train_batch.float(), encoding_function(y_train_batch, num_categories=2))
+            model.fit_coeff(X_train_batch.float(), encoding_function(y_train_batch, device, num_categories=2))
 
             for X_val_batch, y_val_batch in val_loader:
                 X_val_batch, y_val_batch = X_val_batch.to(device), y_val_batch.to(device)
 
                 y_val_pred = model(X_val_batch)
-                encoded_labels = encoding_function(y_val_batch, num_categories=2)
+                encoded_labels = encoding_function(y_val_batch, device, num_categories=2)
                 val_loss = criterion(y_val_pred, encoded_labels)
                 val_acc = multi_acc(y_val_pred, y_val_batch, sigmoid)
 

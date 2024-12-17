@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Train ANFIS",
+            "type": "debugpy",
+            "module": "torch.distributed.launch",
+            "request": "launch",
+            "console": "integratedTerminal",
+            "args": [
+                "--nproc_per_node", "1", 
+                "train_anfis.py",
+            ]
+        }
+    ]
+}
