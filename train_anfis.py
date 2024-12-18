@@ -226,9 +226,12 @@ columns_sel = get_columns_sel(dataset_name)
 # number of features selected (leads to the selection of all?)
 n_features = len(columns_sel)
 # train model here
-model = train(dataset_name, learning_rate, batch_size, columns_sel[:n_features],
-              encoding_type, sigmoid, mfs_type)
+# model = train(dataset_name, learning_rate, batch_size, columns_sel[:n_features], encoding_type, sigmoid, mfs_type)
 # train models there
-# for mfs_type in mfs_types:
-#    model = train(dataset_name, n_features, learning_rate, batch_size, columns_sel[:n_features],
-#    encoding_type, sigmoid, mfs_type)
+for dataset in dataset_names:
+    for encoding in encoding_types:
+        for mfs_type in mfs_types:
+            model = train(dataset, learning_rate, batch_size, columns_sel[:n_features],
+                          encoding, True, mfs_type)
+            model = train(dataset, learning_rate, batch_size, columns_sel[:n_features],
+                          encoding, False, mfs_type)
