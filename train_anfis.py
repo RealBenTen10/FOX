@@ -164,8 +164,8 @@ def get_data(dataset, n_feature, batch_size, columns_sel):
 
     return DataLoader(train_dataset, batch_size=batch_size, shuffle=False), DataLoader(val_dataset, batch_size=batch_size), DataLoader(td, batch_size=batch_size, shuffle=False), columns_sel
 
-def train(dataset, n_feature, learning_rate, bs, columns_sel, encoding_type, sigmoid, mfs_type):
-    train_data, val_data, x, columns_sel = get_data(dataset, n_feature, bs, columns_sel)
+def train(dataset, n_feature, learning_rate, batch_size, columns_sel, encoding_type, sigmoid, mfs_type):
+    train_data, val_data, x, columns_sel = get_data(dataset, n_feature, batch_size, columns_sel)
     x_train, y_train = x.dataset.tensors
     # Create ANFIS model
     model = make_anfis(x_train, device, num_mfs=3, num_out=2, hybrid=False)
@@ -181,8 +181,8 @@ def train(dataset, n_feature, learning_rate, bs, columns_sel, encoding_type, sig
     return model
 
 # Not used?
-def opt(dataset, n_feature, learning_rate, bs, file_name, columns_sel):
-    train_data, val_data, x, columns_sel = get_data(dataset, n_feature, bs, columns_sel)
+def opt(dataset, n_feature, learning_rate, batch_size, file_name, columns_sel):
+    train_data, val_data, x, columns_sel = get_data(dataset, n_feature, batch_size, columns_sel)
     x_train, y_train = x.dataset.tensors
 
     model = make_anfis(x_train, num_mfs=3, num_out=2, hybrid=False)

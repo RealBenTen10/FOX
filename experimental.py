@@ -1,7 +1,8 @@
 import torch
-import torch.nn.functional as F
+import torch.nn.functional as f
 from tqdm.notebook import tqdm
 import numpy as np
+from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score
 
 # not used?
 seed = 123
@@ -10,6 +11,8 @@ torch.manual_seed(seed)
 dtype = torch.float
 
 # One_hot encoding
+
+
 def make_one_hot(data, device, num_categories, dtype=torch.float):
     num_entries = len(data)
     cats = data.clone().detach().long().unsqueeze(1)  # Properly clone and detach input tensor
@@ -18,16 +21,21 @@ def make_one_hot(data, device, num_categories, dtype=torch.float):
     return y
 
 # Label Encoding
+
+
 def make_label_encoding(data, device, num_categories=None, dtype=torch.float):
     y = data.clone().detach().long()  # Properly clone and detach input tensor
     return y
 
 # Index Encoding
+
 def make_index_encoding(data, device, num_categories=None, dtype=torch.float):
     y = data.clone().detach().long()  # Properly clone and detach input tensor
     return y
 
 # Boolean Encoding
+
+
 def make_boolean_encoding(data, device, num_categories, dtype=torch.float):
     num_entries = len(data)
     cats = data.clone().detach().long().unsqueeze(1)  # Clone and detach input tensor
@@ -36,6 +44,8 @@ def make_boolean_encoding(data, device, num_categories, dtype=torch.float):
     return y
 
 # Get encoding function based on type
+
+
 def get_encoding_function(encoding_type):
     if encoding_type == "one_hot":
         return make_one_hot
@@ -50,12 +60,26 @@ def get_encoding_function(encoding_type):
         raise ValueError(f"Unknown encoding type: {encoding_type}")
 
 # Choose device - don't change this
+
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+
+def get_loss_function(bce_with_logits, l1_loss, smooth_l1):
+    if bce_with_logits:
+        return torch.nn.BCEWithLogitsLoss()
+    elif l1_loss:
+        return torch.nn.L1Loss()
+    elif smooth_l1:
+        return torch.nn.SmoothL1Loss()
+    else:
+        return torch.nn.CrossEntropyLoss()
 
 # Get Accuracy
 # Here the predicted values are tested against the true values
 # For sepsis_cases_1 the model always predicts 0 which results in the same accuracy each epoch
+
+
 def multi_acc(y_pred, y_test, sigmoid):
     # Sigmoid function instead of softmax
     if sigmoid:
@@ -72,8 +96,6 @@ def multi_acc(y_pred, y_test, sigmoid):
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score
-
 def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding_type, sigmoid, device):
     print(device)
     print("Begin training.")
@@ -83,10 +105,13 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
     recall_stats = {'train': [], "val": []}
     f1_stats = {'train': [], "val": []}
     auc_stats = {'train': [], "val": []}
-    criterion = torch.nn.CrossEntropyLoss()
+    # Get loss function - if all are false, the default is CrossEntropyLoss
+    criterion = get_loss_function(False, False, False)
     best_loss = np.inf
     best_epoch = 0
+    best_model = 0
     encoding_function = get_encoding_function(encoding_type)
+    X_train_batch, y_train_batch = 0, 0
 
     for e in tqdm(range(1, EPOCHS + 1)):
         train_epoch_loss = 0
@@ -107,7 +132,7 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
             train_acc = multi_acc(y_train_pred, y_train_batch, sigmoid)
 
             # Predictions and Metrics
-            y_pred_prob = torch.sigmoid(y_train_pred) if sigmoid else F.softmax(y_train_pred, dim=1)
+            y_pred_prob = torch.sigmoid(y_train_pred) if sigmoid else f.softmax(y_train_pred, dim=1)
             y_pred_binary = (y_pred_prob[:, 1] > 0.5).cpu().numpy()
             # true label?
             y_true = y_train_batch.cpu().numpy()
@@ -117,11 +142,10 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
             train_f1 = f1_score(y_true, y_pred_binary)
             train_auc = roc_auc_score(y_true, y_pred_prob[:, 1].detach().cpu().numpy())
 
-
             # Backpropagation
             train_loss.backward()
             optimizer.step()
-
+            # Metric calculation
             train_epoch_loss += train_loss.item()
             train_epoch_acc += train_acc.item()
             train_epoch_precision += train_precision
@@ -149,7 +173,7 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
                 val_acc = multi_acc(y_val_pred, y_val_batch, sigmoid)
 
                 # Predictions and Metrics
-                y_val_prob = torch.sigmoid(y_val_pred) if sigmoid else F.softmax(y_val_pred, dim=1)
+                y_val_prob = torch.sigmoid(y_val_pred) if sigmoid else f.softmax(y_val_pred, dim=1)
                 y_val_binary = (y_val_prob[:, 1] > 0.5).cpu().numpy()
                 # true label?
                 y_val_true = y_val_batch.cpu().numpy()
