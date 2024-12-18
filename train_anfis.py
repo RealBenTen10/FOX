@@ -228,10 +228,11 @@ n_features = len(columns_sel)
 # train model here
 # model = train(dataset_name, learning_rate, batch_size, columns_sel[:n_features], encoding_type, sigmoid, mfs_type)
 # train models there
-for dataset in dataset_names:
+# enumerate through the dataset names to get each dataset and the corresponding parameters
+for i in enumerate(len(dataset_names)):
     for encoding in encoding_types:
         for mfs_type in mfs_types:
-            model = train(dataset, learning_rate, batch_size, columns_sel[:n_features],
+            model = train(dataset_names[i], params_list[i][0], params_list[i][1], columns_sel[:n_features],
                           encoding, True, mfs_type)
-            model = train(dataset, learning_rate, batch_size, columns_sel[:n_features],
+            model = train(dataset_names[i], params_list[i][0], params_list[i][1], columns_sel[:n_features],
                           encoding, False, mfs_type)
