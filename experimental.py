@@ -212,7 +212,7 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
         if e - best_epoch > 10:
             print(best_epoch)
             break
-
+        '''
         print(
             f'Epoch {e:03}: | Train Loss: {train_epoch_loss / len(train_loader):.4f} | Val Loss: {val_epoch_loss / len(val_loader):.4f} | '
             f'Train Acc: {train_epoch_acc / len(train_loader):.4f} | Val Acc: {val_epoch_acc / len(val_loader):.4f} | '
@@ -221,6 +221,7 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
             f'Train F1: {train_epoch_f1 / len(train_loader):.4f} | Val F1: {val_epoch_f1 / len(val_loader):.4f} | '
             f'Train AUC: {train_epoch_auc / len(train_loader):.4f} | Val AUC: {val_epoch_auc / len(val_loader):.4f}'
         )
+        '''
 
     return best_model, loss_stats['val']
 
