@@ -109,6 +109,7 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
             # Predictions and Metrics
             y_pred_prob = torch.sigmoid(y_train_pred) if sigmoid else F.softmax(y_train_pred, dim=1)
             y_pred_binary = (y_pred_prob[:, 1] > 0.5).cpu().numpy()
+            # true label?
             y_true = y_train_batch.cpu().numpy()
 
             train_precision = precision_score(y_true, y_pred_binary, zero_division=0)
@@ -150,6 +151,7 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
                 # Predictions and Metrics
                 y_val_prob = torch.sigmoid(y_val_pred) if sigmoid else F.softmax(y_val_pred, dim=1)
                 y_val_binary = (y_val_prob[:, 1] > 0.5).cpu().numpy()
+                # true label?
                 y_val_true = y_val_batch.cpu().numpy()
 
                 val_precision = precision_score(y_val_true, y_val_binary, zero_division=0)

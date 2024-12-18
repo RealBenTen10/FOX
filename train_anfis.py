@@ -72,12 +72,12 @@ mfs_type = mfs_types[2]
 # Set some parameters
 epochs = 100            # Set the number of epochs
 sigmoid = False         # use sigmoid instead of softmax
-test_size = 0.2         # Set the test_size
+train_size = 0.8        # Set the split size - 0.8 = 20% validation and 80% train
 random_state = 69       # Set the random state
 learning_rate = params[0]   # Set the learning rate
 batch_size = params[1]        # Set the batch_size
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # Set the device - don't change this
-num_mfs = 3             # Set number of membership functions?
+num_mfs = 3             # Set number of membership functions? or number of possible values (low, med, high)
 
 
 # not used?
@@ -136,8 +136,9 @@ def get_data(dataset, n_feature, batch_size, columns_sel):
     d_data = array[:, :-1]
     d_target = array[:, -1]
 
+    # split train/val - test dataset is separate
     X_train, X_val, y_train, y_val = train_test_split(
-        d_data, d_target, test_size=test_size, stratify=d_target, random_state=random_state, shuffle=True
+        d_data, d_target, test_size=(1-train_size), stratify=d_target, random_state=random_state, shuffle=True
     )
 
     # Encode targets based on the chosen encoding type
@@ -168,9 +169,9 @@ def train(dataset, n_feature, learning_rate, bs, columns_sel, encoding_type, sig
     x_train, y_train = x.dataset.tensors
     # Create ANFIS model
     model = make_anfis(x_train, device, num_mfs=3, num_out=2, hybrid=False)
-    # Create optimizer
+    # Initialize optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    # Train ANFIS model (using optimizer Adam)
+    # (Re-)train ANFIS model using optimizer Adam
     model, score = experimental.train_anfis_cat(model, train_data, val_data, optimizer, epochs, encoding_type, sigmoid, device)
     # Save the trained model
     torch.save(model, 'models/model_' + dataset + '.h5')
