@@ -1,13 +1,11 @@
-import torch
-from torch.utils.data import TensorDataset, DataLoader
+from torch.utils.data import TensorDataset
 from sklearn.model_selection import train_test_split
 from membership import MfsType, make_anfis
-import experimental
+from experimental import train_anfis_cat
 import load_model
-from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
+from torch.utils.data import Dataset, DataLoader
 import numpy as np
 import pandas as pd
-import pickle as pk
 import torch
 
 # Set the encoding type here: choose 'boolean', 'label', 'index', or 'one_hot'
@@ -40,7 +38,7 @@ dataset_names = [
 dataset_name = dataset_names[1]
 
 # the parameters have the same order as the dataset_names
-# so parans[0] has the parameters lr and batch_size of sepsis_cases_1
+# so params[0] has the parameters lr and batch_size of sepsis_cases_1
 # params_list[X][0] is learning_rate
 # params_list[X][1] is batch_size
 params_list = [
@@ -57,8 +55,6 @@ params_list = [
     [0.0005634190655247415, 128]
 ]
 params = params_list[1]
-
-
 
 mfs_types = [
     MfsType.Bell,
@@ -85,6 +81,7 @@ seed = 123
 np.random.seed(seed)
 torch.manual_seed(seed)
 
+
 class ClassifierDataset(Dataset):
 
     def __init__(self, X_data, y_data):
@@ -97,11 +94,13 @@ class ClassifierDataset(Dataset):
     def __len__(self):
         return len(self.X_data)
 
+
 def boolean_encoding(data):
     """Convert categorical data into boolean representation."""
     unique_classes = np.unique(data)
     encoded = np.array([[1 if val == cls else 0 for cls in unique_classes] for val in data])
     return torch.tensor(encoded, dtype=torch.float)
+
 
 def label_encoding(data):
     """Convert categories to integer labels."""
@@ -109,12 +108,14 @@ def label_encoding(data):
     encoded = np.array([labels[val] for val in data])
     return torch.tensor(encoded, dtype=torch.long)
 
+
 def index_encoding(data):
     """Convert categories into their index position."""
     unique_classes = np.unique(data)
     indices = {val: idx for idx, val in enumerate(unique_classes)}
     encoded = np.array([indices[val] for val in data])
     return torch.tensor(encoded, dtype=torch.long)
+
 
 def one_hot_encoding(data, num_categories, dtype=torch.float):
     """Convert data into one-hot representation."""
@@ -127,7 +128,8 @@ def one_hot_encoding(data, num_categories, dtype=torch.float):
     y.requires_grad = True
     return y
 
-def get_data(dataset, n_feature, batch_size, columns_sel):
+
+def get_data(dataset, batch_size, columns_sel):
     dataframe = pd.read_csv(f'dataset/{dataset}/{dataset}_train.csv', header=0, sep=',')
     columns_sel.append('Classification')
     dataframe = dataframe[columns_sel]
@@ -137,9 +139,8 @@ def get_data(dataset, n_feature, batch_size, columns_sel):
     d_target = array[:, -1]
 
     # split train/val - test dataset is separate
-    X_train, X_val, y_train, y_val = train_test_split(
-        d_data, d_target, test_size=(1-train_size), stratify=d_target, random_state=random_state, shuffle=True
-    )
+    X_train, X_val, y_train, y_val = train_test_split(d_data, d_target, test_size=(1-train_size),
+                                                      stratify=d_target, random_state=random_state, shuffle=True)
 
     # Encode targets based on the chosen encoding type
     if encoding_type == 'boolean':
@@ -162,17 +163,20 @@ def get_data(dataset, n_feature, batch_size, columns_sel):
     y = y_train_encoded
     td = TensorDataset(x, y)
 
-    return DataLoader(train_dataset, batch_size=batch_size, shuffle=False), DataLoader(val_dataset, batch_size=batch_size), DataLoader(td, batch_size=batch_size, shuffle=False), columns_sel
+    return (DataLoader(train_dataset, batch_size=batch_size, shuffle=False),
+            DataLoader(val_dataset, batch_size=batch_size),
+            DataLoader(td, batch_size=batch_size, shuffle=False), columns_sel)
 
-def train(dataset, n_feature, learning_rate, batch_size, columns_sel, encoding_type, sigmoid, mfs_type):
-    train_data, val_data, x, columns_sel = get_data(dataset, n_feature, batch_size, columns_sel)
+
+def train(dataset, learning_rate, batch_size, columns_sel, encoding_type, sigmoid, mfs_type):
+    train_data, val_data, x, columns_sel = get_data(dataset, batch_size, columns_sel)
     x_train, y_train = x.dataset.tensors
     # Create ANFIS model
     model = make_anfis(x_train, device, num_mfs=3, num_out=2, hybrid=False)
     # Initialize optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     # (Re-)train ANFIS model using optimizer Adam
-    model, score = experimental.train_anfis_cat(model, train_data, val_data, optimizer, epochs, encoding_type, sigmoid, device)
+    model, score = train_anfis_cat(model, train_data, val_data, optimizer, epochs, encoding_type, sigmoid, device)
     # Save the trained model
     torch.save(model, 'models/model_' + dataset + '.h5')
     torch.save(model, 'streamlit_fox/models/model_' + dataset + '.h5')
@@ -180,41 +184,40 @@ def train(dataset, n_feature, learning_rate, batch_size, columns_sel, encoding_t
     load_model.metrics(dataset, columns_sel, encoding_type, sigmoid, mfs_type, device)
     return model
 
-# Not used?
-def opt(dataset, n_feature, learning_rate, batch_size, file_name, columns_sel):
-    train_data, val_data, x, columns_sel = get_data(dataset, n_feature, batch_size, columns_sel)
-    x_train, y_train = x.dataset.tensors
-
-    model = make_anfis(x_train, num_mfs=3, num_out=2, hybrid=False)
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    model, scores = experimental.train_anfis_cat(model, train_data, val_data, optimizer,epochs, encoding_type, sigmoid)
-    return model, scores
 
 # Get features for model training and streamlit view
 def get_columns_sel(dataset_name):
     if dataset_name == 'sepsis_cases_1':
-        columns_sel = ['Diagnose', 'mean_open_cases', 'Age', 'std_Leucocytes', 'std_CRP']#sepsis_cases_1
+        columns_sel = ['Diagnose', 'mean_open_cases', 'Age', 'std_Leucocytes', 'std_CRP']
     elif dataset_name == 'sepsis_cases_2':
-        columns_sel = ['Diagnose', 'mean_open_cases', 'mean_hour', 'DisfuncOrg']#sepsis_cases_2
+        columns_sel = ['Diagnose', 'mean_open_cases', 'mean_hour', 'DisfuncOrg']
     elif dataset_name == 'sepsis_cases_4':
-        columns_sel = ['Diagnose', 'mean_open_cases', 'Age', 'org:group_E', 'std_CRP', 'DiagnosticECG']#sepsis_cases_4
+        columns_sel = ['Diagnose', 'mean_open_cases', 'Age', 'org:group_E', 'std_CRP', 'DiagnosticECG']
     elif dataset_name == 'bpic2011_f1':
-        columns_sel = ['Diagnosis Treatment Combination ID', 'mean_open_cases', 'Diagnosis', 'Activity code_376400.0']#bpic2011_f1
+        columns_sel = ['Diagnosis Treatment Combination ID', 'mean_open_cases', 'Diagnosis', 'Activity code_376400.0']
     elif dataset_name == 'bpic2011_f2':
-        columns_sel = ['Diagnosis Treatment Combination ID', 'Diagnosis', 'Diagnosis code', 'mean_open_cases', 'Activity code_376400.0', 'Age', 'Producer code_CHE1']#bpic2011_f2
+        columns_sel = ['Diagnosis Treatment Combination ID', 'Diagnosis', 'Diagnosis code', 'mean_open_cases',
+                       'Activity code_376400.0', 'Age', 'Producer code_CHE1']
     elif dataset_name == 'bpic2011_f3':
-        columns_sel = ['Diagnosis Treatment Combination ID', 'Diagnosis', 'mean_open_cases', 'Diagnosis code', 'std_event_nr', 'mean_event_nr']#bpic2011_f3
+        columns_sel = ['Diagnosis Treatment Combination ID', 'Diagnosis', 'mean_open_cases', 'Diagnosis code',
+                       'std_event_nr', 'mean_event_nr']
     elif dataset_name == 'bpic2011_f4':
-        columns_sel = ['Diagnosis Treatment Combination ID', 'Treatment code']#bpic2011_f4
+        columns_sel = ['Diagnosis Treatment Combination ID', 'Treatment code']
     elif dataset_name == 'bpic2012_accepted':
-        columns_sel = ['AMOUNT_REQ', 'Activity_O_SENT_BACK-COMPLETE', 'Activity_W_Valideren aanvraag-SCHEDULE', 'Activity_W_Valideren aanvraag-START']#bpic2012_accepted
+        columns_sel = ['AMOUNT_REQ', 'Activity_O_SENT_BACK-COMPLETE', 'Activity_W_Valideren aanvraag-SCHEDULE',
+                       'Activity_W_Valideren aanvraag-START']
     elif dataset_name == 'bpic2012_declined':
-        columns_sel = ['AMOUNT_REQ', 'Activity_A_PARTLYSUBMITTED-COMPLETE', 'Activity_A_PREACCEPTED-COMPLETE', 'Activity_A_DECLINED-COMPLETE', 'Activity_W_Completeren aanvraag-SCHEDULE', 'mean_open_cases'] #bpic2012_declined
+        columns_sel = ['AMOUNT_REQ', 'Activity_A_PARTLYSUBMITTED-COMPLETE', 'Activity_A_PREACCEPTED-COMPLETE',
+                       'Activity_A_DECLINED-COMPLETE', 'Activity_W_Completeren aanvraag-SCHEDULE', 'mean_open_cases']
     elif dataset_name == 'bpic2012_cancelled':
-        columns_sel = ['Activity_O_SENT_BACK-COMPLETE', 'Activity_W_Valideren aanvraag-SCHEDULE', 'Activity_W_Valideren aanvraag-START', 'AMOUNT_REQ', 'Activity_W_Valideren aanvraag-COMPLETE', 'Activity_A_CANCELLED-COMPLETE']#bpic2012_cancelled
+        columns_sel = ['Activity_O_SENT_BACK-COMPLETE', 'Activity_W_Valideren aanvraag-SCHEDULE',
+                       'Activity_W_Valideren aanvraag-START', 'AMOUNT_REQ', 'Activity_W_Valideren aanvraag-COMPLETE',
+                       'Activity_A_CANCELLED-COMPLETE']
     elif dataset_name == 'production':
-        columns_sel = ['Work_Order_Qty', 'Activity_Turning & Milling - Machine 4', 'Resource_ID0998', 'Resource_ID4794', 'Resource.1_Machine 4 - Turning & Milling']#production
-
+        columns_sel = ['Work_Order_Qty', 'Activity_Turning & Milling - Machine 4', 'Resource_ID0998', 'Resource_ID4794',
+                       'Resource.1_Machine 4 - Turning & Milling']
+    else:
+        return []
     return columns_sel
 
 
@@ -223,7 +226,9 @@ columns_sel = get_columns_sel(dataset_name)
 # number of features selected (leads to the selection of all?)
 n_features = len(columns_sel)
 # train model here
-model = train(dataset_name, n_features, learning_rate, batch_size, columns_sel[:n_features], encoding_type, sigmoid, mfs_type)
+model = train(dataset_name, learning_rate, batch_size, columns_sel[:n_features],
+              encoding_type, sigmoid, mfs_type)
 # train models there
-#for mfs_type in mfs_types:
-#    model = train(dataset_name, n_features, learning_rate, batch_size, columns_sel[:n_features], encoding_type, sigmoid, mfs_type)
+# for mfs_type in mfs_types:
+#    model = train(dataset_name, n_features, learning_rate, batch_size, columns_sel[:n_features],
+#    encoding_type, sigmoid, mfs_type)
