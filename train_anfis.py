@@ -97,21 +97,21 @@ class ClassifierDataset(Dataset):
 
 
 def boolean_encoding(data):
-    """Convert categorical data into boolean representation."""
+    """Convert categorical data into boolean representation"""
     unique_classes = np.unique(data)
     encoded = np.array([[1 if val == cls else 0 for cls in unique_classes] for val in data])
     return torch.tensor(encoded, dtype=torch.float)
 
 
 def label_encoding(data):
-    """Convert categories to integer labels."""
+    """Convert categories to integer labels"""
     labels = {val: idx for idx, val in enumerate(np.unique(data))}
     encoded = np.array([labels[val] for val in data])
     return torch.tensor(encoded, dtype=torch.long)
 
 
 def index_encoding(data):
-    """Convert categories into their index position."""
+    """Convert categories into their index position"""
     unique_classes = np.unique(data)
     indices = {val: idx for idx, val in enumerate(unique_classes)}
     encoded = np.array([indices[val] for val in data])
@@ -119,7 +119,7 @@ def index_encoding(data):
 
 
 def one_hot_encoding(data, num_categories, dtype=torch.float):
-    """Convert data into one-hot representation."""
+    """Convert data into one-hot representation"""
     num_entries = len(data)
     # Convert data to a torch tensor of indices, with extra dimension:
     cats = torch.Tensor(data).long().unsqueeze(1)
@@ -144,6 +144,7 @@ def get_data(dataset, batch_size, columns_sel):
                                                       stratify=d_target, random_state=random_state, shuffle=True)
 
     # Encode targets based on the chosen encoding type
+    # are the encoded values used???
     if encoding_type == 'boolean':
         y_train_encoded = boolean_encoding(y_train)
     elif encoding_type == 'label':
@@ -161,17 +162,20 @@ def get_data(dataset, batch_size, columns_sel):
     val_dataset = ClassifierDataset(torch.from_numpy(X_val).float(), torch.from_numpy(y_val).long())
 
     x = torch.Tensor(X_train)
+    # encoded values
     y = y_train_encoded
+    # encoded values...
     td = TensorDataset(x, y)
 
     return (DataLoader(train_dataset, batch_size=batch_size, shuffle=False),
             DataLoader(val_dataset, batch_size=batch_size),
-            DataLoader(td, batch_size=batch_size, shuffle=False),
+            DataLoader(td, batch_size=batch_size, shuffle=False),  # return td with encoded values
             columns_sel)
 
 
 def train(dataset, learning_rate, batch_size, columns_sel, encoding_type, sigmoid, mfs_type):
-    train_data, val_data, x , columns_sel = get_data(dataset, batch_size, columns_sel)
+    train_data, val_data, x, columns_sel = get_data(dataset, batch_size, columns_sel)
+    # y_train holds the encoded values... but is not used -_-
     x_train, y_train = x.dataset.tensors
     # Create ANFIS model
     model = make_anfis(x_train, device, num_mfs=3, num_out=2, hybrid=False)

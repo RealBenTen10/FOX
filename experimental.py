@@ -129,9 +129,6 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
 
             y_train_pred = model(X_train_batch)
             encoded_labels = encoding_function(y_train_batch, device, num_categories=2)
-            print("y_train_batch: ", y_train_batch)
-            print("encoded_labels: ", encoded_labels)
-            print("y_train_pred: ", y_train_pred)
             train_loss = criterion(y_train_pred, encoded_labels)
             train_acc = multi_acc(y_train_pred, y_train_batch, sigmoid)
 
@@ -179,7 +176,6 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
                 # Predictions and Metrics
                 y_val_prob = torch.sigmoid(y_val_pred) if sigmoid else f.softmax(y_val_pred, dim=1)
                 y_val_binary = (y_val_prob[:, 1] > 0.5).cpu().numpy()
-                # true label?
                 y_val_true = y_val_batch.cpu().numpy()
 
                 val_precision = precision_score(y_val_true, y_val_binary, zero_division=0)
