@@ -56,6 +56,7 @@ params_list = [
 ]
 params = params_list[1]
 
+# Membership function types
 mfs_types = [
     MfsType.Bell,
     MfsType.DSigmoid,
@@ -66,7 +67,7 @@ mfs_types = [
 mfs_type = mfs_types[2]
 
 # Set some parameters
-epochs = 100            # Set the number of epochs
+epochs = 1            # Set the number of epochs
 sigmoid = False         # use sigmoid instead of softmax
 train_size = 0.8        # Set the split size - 0.8 = 20% validation and 80% train
 random_state = 69       # Set the random state
@@ -76,7 +77,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # Set t
 num_mfs = 3             # Set number of membership functions? or number of possible values (low, med, high)
 
 
-# not used?
+# used for torch - otherwise random state could be different each time
 seed = 123
 np.random.seed(seed)
 torch.manual_seed(seed)
@@ -165,11 +166,12 @@ def get_data(dataset, batch_size, columns_sel):
 
     return (DataLoader(train_dataset, batch_size=batch_size, shuffle=False),
             DataLoader(val_dataset, batch_size=batch_size),
-            DataLoader(td, batch_size=batch_size, shuffle=False), columns_sel)
+            DataLoader(td, batch_size=batch_size, shuffle=False),
+            columns_sel)
 
 
 def train(dataset, learning_rate, batch_size, columns_sel, encoding_type, sigmoid, mfs_type):
-    train_data, val_data, x, columns_sel = get_data(dataset, batch_size, columns_sel)
+    train_data, val_data, x , columns_sel = get_data(dataset, batch_size, columns_sel)
     x_train, y_train = x.dataset.tensors
     # Create ANFIS model
     model = make_anfis(x_train, device, num_mfs=3, num_out=2, hybrid=False)
@@ -226,9 +228,10 @@ columns_sel = get_columns_sel(dataset_name)
 # number of features selected (leads to the selection of all?)
 n_features = len(columns_sel)
 # train model here
-# model = train(dataset_name, learning_rate, batch_size, columns_sel[:n_features], encoding_type, sigmoid, mfs_type)
+model = train(dataset_name, learning_rate, batch_size, columns_sel[:n_features], encoding_type, sigmoid, mfs_type)
 # train models there
 # enumerate through the dataset names to get each dataset and the corresponding parameters
+'''
 for i in range(len(dataset_names)):
     for encoding in encoding_types:
         for mfs_type in mfs_types:
@@ -236,3 +239,4 @@ for i in range(len(dataset_names)):
                           encoding, True, mfs_type)
             model = train(dataset_names[i], params_list[i][0], params_list[i][1], columns_sel[:n_features],
                           encoding, False, mfs_type)
+'''

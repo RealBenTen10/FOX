@@ -4,7 +4,7 @@ from tqdm.notebook import tqdm
 import numpy as np
 from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score
 
-# not used?
+# used for torch - otherwise random each run
 seed = 123
 np.random.seed(seed)
 torch.manual_seed(seed)
@@ -28,6 +28,7 @@ def make_label_encoding(data, device, num_categories=None, dtype=torch.float):
     return y
 
 # Index Encoding
+
 
 def make_index_encoding(data, device, num_categories=None, dtype=torch.float):
     y = data.clone().detach().long()  # Properly clone and detach input tensor
@@ -128,6 +129,9 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
 
             y_train_pred = model(X_train_batch)
             encoded_labels = encoding_function(y_train_batch, device, num_categories=2)
+            print("y_train_batch: ", y_train_batch)
+            print("encoded_labels: ", encoded_labels)
+            print("y_train_pred: ", y_train_pred)
             train_loss = criterion(y_train_pred, encoded_labels)
             train_acc = multi_acc(y_train_pred, y_train_batch, sigmoid)
 
