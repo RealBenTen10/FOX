@@ -3,7 +3,7 @@
 '''
     ANFIS in torch: the ANFIS layers
     @author: James Power <james.power@mu.ie> Apr 12 18:13:10 2019
-    Acknowledgement: twmeggs' implementation of ANFIS in Python was very
+    Acknowledgement: twmeggs's implementation of ANFIS in Python was very
     useful in understanding how the ANFIS structures could be interpreted:
         https://github.com/twmeggs/anfis
 '''
@@ -23,8 +23,8 @@ from sklearn.preprocessing import MinMaxScaler
 dtype = torch.float
 
 
-
 class FuzzifyVariable(torch.nn.Module):
+
     '''
         Represents a single fuzzy variable, holds a list of its MFs.
         Forward pass will then fuzzify the input (value for each MF).
@@ -38,7 +38,6 @@ class FuzzifyVariable(torch.nn.Module):
         self.padding = 0
         self.nterm = (len(mfdefs))
 
-
     @property
     def num_mfs(self):
         '''Return the actual number of MFs (ignoring any padding)'''
@@ -46,7 +45,7 @@ class FuzzifyVariable(torch.nn.Module):
 
     def members(self):
         '''
-            Return an iterator over this variables's membership functions.
+            Return an iterator over this variables' membership functions.
             Yields tuples of the form (mf-name, MembFunc-object)
         '''
         return self.mfdefs.items()
@@ -64,7 +63,7 @@ class FuzzifyVariable(torch.nn.Module):
         '''
         for mfname, mfdef in self.mfdefs.items():
             yvals = mfdef(x)
-            yield(mfname, yvals)
+            yield mfname, yvals
 
     def forward(self, x):
         '''
@@ -79,14 +78,11 @@ class FuzzifyVariable(torch.nn.Module):
         return y_pred
 
 
-
-
-
 class FuzzifyLayer(torch.nn.Module):
     '''
         A list of fuzzy variables, representing the inputs to the FIS.
         Forward pass will fuzzify each variable individually.
-        We pad the variables so they all seem to have the same number of MFs,
+        We pad the variables such that they all seem to have the same number of MFs,
         as this allows us to put all results in the same tensor.
     '''
     def __init__(self, varmfs, varnames=None):
@@ -124,11 +120,10 @@ class FuzzifyLayer(torch.nn.Module):
                          ', '.join(['{}={}'.format(n, p.item())
                                    for n, p in mfdef.named_parameters()])))
 
-
         #########################  QUA STA  #####################################
         for n, p in mfdef.named_parameters():
-            print('n',n)
-            print('p',p)
+            print('n', n)
+            print('p', p)
         ##############################################################
 
         return '\n'.join(r)
@@ -138,7 +133,7 @@ class FuzzifyLayer(torch.nn.Module):
             x.shape = n_cases * n_in
             y.shape = n_cases * n_in * n_mfs
         '''
-        assert x.shape[1] == self.num_in,\
+        assert x.shape[1] == self.num_in, \
             '{} is wrong no. of input values'.format(self.num_in)
         y_pred = torch.stack([var(x[:, i:i+1])
                               for i, var in enumerate(self.varmfs.values())],
@@ -188,20 +183,20 @@ class AntecedentLayer(torch.nn.Module):
         # ants.shape is n_cases * n_rules * n_in
         # Last, take the AND (= product) for each rule-antecedent
         rules = torch.prod(ants, dim=2)
-        #print("-----------------------------")
-        #print(rules)
-        #print(rules[4])
-        #print(torch.argmax(rules[4]))
+        # print("-----------------------------")
+        # print(rules)
+        # print(rules[4])
+        # print(torch.argmax(rules[4]))
         
         ii = 0 
         list_fire_rule = []
         rules_det = rules.detach().numpy()
-        while ii<len(rules):
+        while ii < len(rules):
             list_fire_rule.append(rules_det[ii])
             ii = ii + 1
 
         list_fire_rule = np.array(list_fire_rule)
-        np.save('list_fire_rule.npy',list_fire_rule)
+        np.save('list_fire_rule.npy', list_fire_rule)
         return rules
 
 
@@ -252,7 +247,7 @@ class ConsequentLayer(torch.nn.Module):
                   y.shape: n_cases * n_out
         '''
         # Append 1 to each list of input vals, for the constant term:
-        #x_plus = torch.cat([x, torch.ones(x.shape[0], 1)], dim=1)
+        # x_plus = torch.cat([x, torch.ones(x.shape[0], 1)], dim=1)
 
         x_plus = torch.ones(len(x), 1)
 
@@ -265,12 +260,12 @@ class ConsequentLayer(torch.nn.Module):
         weighted_x_2d = weighted_x.view(weighted_x.shape[0], -1)
         y_actual_2d = y_actual.view(y_actual.shape[0], -1)
 
-        #print('weighted_x_2d',weighted_x_2d) #PESI
-        #print('y_actual_2d',y_actual_2d) #RAPPRESENTAZIONE ONE OUT DEL TARGET
+        # print('weighted_x_2d',weighted_x_2d) #PESI
+        # print('y_actual_2d',y_actual_2d) #RAPPRESENTAZIONE ONE OUT DEL TARGET
 
         # Use gels to do LSE, then pick out the solution rows:
         try:
-            #coeff_2d, _ = torch.gels(y_actual_2d, weighted_x_2d)
+            # coeff_2d, _ = torch.gels(y_actual_2d, weighted_x_2d)
             coeff_2d, _ = torch.lstsq(y_actual_2d, weighted_x_2d)
         except RuntimeError as e:
             print('Internal error in gels', e)
@@ -279,12 +274,11 @@ class ConsequentLayer(torch.nn.Module):
         coeff_2d = coeff_2d[0:weighted_x_2d.shape[1]]
         # Reshape to 3D tensor: divide by rules, n_in+1, then swap last 2 dims
 
-        #self.coeff = coeff_2d.view(weights.shape[1], x.shape[1]+1, -1).transpose(1, 2)
+        # self.coeff = coeff_2d.view(weights.shape[1], x.shape[1]+1, -1).transpose(1, 2)
 
-        self.coeff = coeff_2d.view(weights.shape[1], self.d_out, -1).transpose(1, 2) #self.d_out = NUMERO DI TARGET
+        self.coeff = coeff_2d.view(weights.shape[1], self.d_out, -1).transpose(1, 2)  # self.d_out = NUMERO DI TARGET
 
         # coeff dim is thus: n_rules * n_out * (n_in+1)
-
 
     def forward(self, x):
         '''
@@ -294,7 +288,7 @@ class ConsequentLayer(torch.nn.Module):
                   y.shape: n_cases * n_out * n_rules
         '''
         # Append 1 to each list of input vals, for the constant term:
-        #x_plus = torch.cat([x, torch.ones(x.shape[0], 1)], dim=1)
+        # x_plus = torch.cat([x, torch.ones(x.shape[0], 1)], dim=1)
         x_plus = torch.ones(len(x), 1)
 
         # Need to switch dimansion for the multipy, then switch back:
@@ -324,13 +318,13 @@ class PlainConsequentLayer(ConsequentLayer):
     def fit_coeff(self, x, weights, y_actual):
         '''
         '''
-        assert False,\
+        assert False, \
             'Not hybrid learning: I\'m using BP to learn coefficients'
 
 
 class WeightedSumLayer(torch.nn.Module):
     '''
-        Sum the TSK for each outvar over rules, weighted by fire strengths.
+        Sum the TSK for each outvar overrules, weighted by fire strengths.
         This could/should be layer 5 of the Anfis net.
         I don't actually use this class, since it's just one line of code.
     '''
@@ -364,7 +358,6 @@ class AnfisNet(torch.nn.Module):
         varnames = [v for v, _ in invardefs]
 
         mfdefs = [FuzzifyVariable(mfs) for _, mfs in invardefs]
-
 
         self.n_mfdefs = len(mfdefs)
 
@@ -401,7 +394,7 @@ class AnfisNet(torch.nn.Module):
         '''
         if self.hybrid:
 
-            #print('quii',x)
+            # print('quii',x)
 
             self(x)
             self.layer['consequent'].fit_coeff(x, self.weights, y_actual)
@@ -415,12 +408,12 @@ class AnfisNet(torch.nn.Module):
 
     def output_variables(self):
         '''
-            Return an list of the names of the system's output variables.
+            Return a list of the names of the system's output variables.
         '''
         return self.outvarnames
 
     def extra_repr(self):
-        #print('rere', self.layer['consequent'].coeff[0])
+        # print('rere', self.layer['consequent'].coeff[0])
         x = self.layer['consequent'].coeff
         scaler = MinMaxScaler()
         lis = []
@@ -449,7 +442,7 @@ class AnfisNet(torch.nn.Module):
 
     def forward(self, x):
         '''
-            Forward pass: run x thru the five layers and return the y values.
+            Forward pass: run x through the five layers and return the y values.
             I save the outputs from each layer to an instance variable,
             as this might be useful for comprehension/debugging.
         '''
@@ -483,4 +476,3 @@ def tensor_hook(label):
     '''
     return (lambda grad:
             print('BP for', label, 'with grad:', grad))
-
