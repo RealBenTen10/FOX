@@ -12,6 +12,7 @@ os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 def metrics(dataset_name, columns_sel, encoding, sigmoid, mfs_type, device):
     # Instead of loading the model, just use the model as input?
     model = torch.load('models/model_' + dataset_name + '.h5')
+    model.to(device)
 
     pd_len = pd.read_csv("dataset/" + dataset_name + "/len_test" + dataset_name + ".csv", header=0, sep=',')
     max_len = pd_len['Len'].max()

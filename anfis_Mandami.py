@@ -94,6 +94,11 @@ class FuzzifyLayer(torch.nn.Module):
         for var in varmfs:
             var.pad_to(maxmfs)
         self.varmfs = torch.nn.ModuleDict(zip(self.varnames, varmfs))
+        
+    def to(self, device):
+        self.device = device
+
+        return self
 
     @property
     def num_in(self):
@@ -154,6 +159,12 @@ class AntecedentLayer(torch.nn.Module):
         mf_indices = itertools.product(*[range(n) for n in mf_count])
         self.mf_indices = torch.tensor(list(mf_indices), device=device)
         # mf_indices.shape is n_rules * n_in
+        
+    def to(self, device):
+        self.device = device
+        self.mf_indices = self.mf_indices.to(device)
+
+        return self
 
     def num_rules(self):
         return len(self.mf_indices)
@@ -211,6 +222,12 @@ class ConsequentLayer(torch.nn.Module):
         self.n_mfdefs = n_mfdefs
         self.n_terms = n_terms
         self.device = device
+        
+    def to(self, device):
+        self.device = device
+        self._coeff = self._coeff.to(device)
+
+        return self
 
     @property
     def coeff(self):
@@ -300,6 +317,12 @@ class PlainConsequentLayer(ConsequentLayer):
         super(PlainConsequentLayer, self).__init__(*params, device=device)
         self.register_parameter('coefficients',
                                 torch.nn.Parameter(self._coeff))
+        
+    def to(self, device):
+        self.device = device
+        self.coefficients = torch.nn.Parameter(self.coefficients.to(device))
+
+        return self
 
     @property
     def coeff(self):
@@ -370,6 +393,14 @@ class AnfisNet(torch.nn.Module):
             ('consequent', cl),
             # weighted-sum layer is just implemented as a function.
             ]))
+        
+    def to(self, device):
+        self.device = device
+
+        for key, _ in self.layer.items():
+            self.layer[key] = self.layer[key].to(device)
+
+        return self
 
     @property
     def num_out(self):

@@ -1,3 +1,4 @@
+import itertools
 import torch
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.model_selection import train_test_split
@@ -37,7 +38,7 @@ dataset_names = [
     'production'
 ]
 # pick the dataset of your choice
-dataset_name = dataset_names[1]
+dataset_name = dataset_names[5]
 
 # the parameters have the same order as the dataset_names
 # so parans[0] has the parameters lr and batch_size of sepsis_cases_1
@@ -67,7 +68,7 @@ mfs_types = [
     MfsType.Sigmoid,
     MfsType.Triangular
 ]
-mfs_type = mfs_types[2]
+mfs_type = mfs_types[0]
 
 # Set some parameters
 epochs = 100            # Set the number of epochs
@@ -77,7 +78,11 @@ random_state = 69       # Set the random state
 learning_rate = params[0]   # Set the learning rate
 batch_size = params[1]        # Set the batch_size
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # Set the device - don't change this
-num_mfs = 3             # Set number of membership functions?
+num_mfs = 3             # Set number of membership functions? or number of possible values (low, med, high)
+                        #   Answer: Fuzzification creates a probability distribution how likely each variable belongs to e certain fuzzy term, in this case LOW, MEDIUM, HIGH.
+                        #           For each fuzzy variable (feature vector item) and each fuzzy term (LOW, MEDIUM, HIGH or GOOD, NEUTRAL, BAD) there is a new membership function with its own learnable parameters
+                        #           So num_terms == num_mfs has to be true
+                        #           So this parameters defines how many terms you want to differentiate into and you have to create a MF for every term
 
 
 # not used?
@@ -173,8 +178,10 @@ def train(dataset, n_feature, learning_rate, bs, columns_sel, encoding_type, sig
     # Train ANFIS model (using optimizer Adam)
     model, score = experimental.train_anfis_cat(model, train_data, val_data, optimizer, epochs, encoding_type, sigmoid, device)
     # Save the trained model
-    torch.save(model, 'models/model_' + dataset + '.h5')
-    torch.save(model, 'streamlit_fox/models/model_' + dataset + '.h5')
+    sigmoid_str = "sigmoid" if sigmoid else "softmax"
+    model_name = f"model_{dataset_name}_{encoding_type}_{sigmoid_str}_{str(mfs_type)}"
+    torch.save(model, 'models/' + model_name + '.h5')
+    torch.save(model, 'streamlit_fox/models/' + model_name + '.h5')
     # Get metrics for the model
     load_model.metrics(dataset, columns_sel, encoding_type, sigmoid, mfs_type, device)
     return model
@@ -222,7 +229,15 @@ columns_sel = get_columns_sel(dataset_name)
 # number of features selected (leads to the selection of all?)
 n_features = len(columns_sel)
 # train model here
-model = train(dataset_name, n_features, learning_rate, batch_size, columns_sel[:n_features], encoding_type, sigmoid, mfs_type)
+model = train(dataset_name, n_features, learning_rate, batch_size, columns_sel[:n_features], encoding_type, True, mfs_type)
+model = train(dataset_name, n_features, learning_rate, batch_size, columns_sel[:n_features], encoding_type, False, mfs_type)
 # train models there
-#for mfs_type in mfs_types:
-#    model = train(dataset_name, n_features, learning_rate, batch_size, columns_sel[:n_features], encoding_type, sigmoid, mfs_type)
+
+# For each certesian product combination of configurations
+# for (encoding_type, sigmoid, mfs_type) in itertools.product(encoding_types, [True, False], mfs_types):
+#     # Reseed the RNGs
+#     np.random.seed(seed)
+#     torch.manual_seed(seed)
+
+#     # train model
+#     model = train(dataset_name, n_features, learning_rate, batch_size, columns_sel[:n_features], encoding_type, sigmoid, mfs_type)
