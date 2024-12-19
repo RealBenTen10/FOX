@@ -67,7 +67,7 @@ mfs_types = [
 mfs_type = mfs_types[2]
 
 # Set some parameters
-epochs = 1            # Set the number of epochs
+epochs = 100            # Set the number of epochs
 sigmoid = False         # use sigmoid instead of softmax
 train_size = 0.8        # Set the split size - 0.8 = 20% validation and 80% train
 random_state = 69       # Set the random state
