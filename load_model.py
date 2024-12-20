@@ -11,7 +11,9 @@ os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
 def metrics(dataset_name, columns_sel, encoding, sigmoid, mfs_type, device):
     # Instead of loading the model, just use the model as input?
-    model = torch.load('models/model_' + dataset_name + '.h5')
+    sigmoid_str = "sigmoid" if sigmoid else "softmax"
+    model_name = f"model_{dataset_name}_{encoding}_{sigmoid_str}_{str(mfs_type)}"
+    model = torch.load('models/' + model_name + '.h5')
     model.to(device)
 
     pd_len = pd.read_csv("dataset/" + dataset_name + "/len_test" + dataset_name + ".csv", header=0, sep=',')
@@ -26,7 +28,6 @@ def metrics(dataset_name, columns_sel, encoding, sigmoid, mfs_type, device):
     y_test = pd.read_csv("dataset/" + dataset_name + "/" + dataset_name + "_test.csv")
     y_test = y_test[y_test.columns[-1]]
 
-    sigmoid_str = "sigmoid" if sigmoid else "softmax"
     f = open(f"results/{dataset_name}_{encoding}_{sigmoid_str}_{str(mfs_type)}_results.csv", "w")
     f.write("SELECTED COLUMNS;" + "\n")
     for element in columns_sel:
@@ -96,8 +97,6 @@ def metrics(dataset_name, columns_sel, encoding, sigmoid, mfs_type, device):
     print("f1_weight: ", f1_weight)
     # Print some stuff
     '''
-    print("---WEIGHTED METRICS---")
-    print("ROC_AUC_SCORE weighted: %.2f" % auc_weight)
 
     f.write('ROC_AUC_SCORE weighted;' + str(auc_weight) + ";" + "\n")
     f.write('F1_SCORE weighted;' + str(f1_weight) + ";" + "\n")
