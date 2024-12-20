@@ -28,6 +28,7 @@ def metrics(dataset_name, columns_sel, encoding, sigmoid, mfs_type, device):
     y_test = pd.read_csv("dataset/" + dataset_name + "/" + dataset_name + "_test.csv")
     y_test = y_test[y_test.columns[-1]]
 
+    sigmoid_str = "sigmoid" if sigmoid else "softmax"
     f = open(f"results/{dataset_name}_{encoding}_{sigmoid_str}_{str(mfs_type)}_results.csv", "w")
     f.write("SELECTED COLUMNS;" + "\n")
     for element in columns_sel:
