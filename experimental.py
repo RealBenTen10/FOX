@@ -124,12 +124,7 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
         for X_train_batch, y_train_batch in train_loader:
             X_train_batch, y_train_batch = X_train_batch.to(device), y_train_batch.to(device)
             optimizer.zero_grad()
-
             y_train_pred = model(X_train_batch)
-            # encoded_labels = encoding_function(y_train_batch, device, num_categories=2)
-
-            print("y_train_batch: ", y_train_batch)
-            print("y train pred: ", y_train_pred)
             train_loss = criterion(y_train_pred, y_train_batch)
             train_acc = multi_acc(y_train_pred, y_train_batch, sigmoid)
 
@@ -213,7 +208,7 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
         if e - best_epoch > 10:
             # print(best_epoch)
             break
-        
+        print(f"\rEpoch: ", e, "/", EPOCHS, end="")
         if log_file:
             log_file.write(
                 f'Epoch {e:03}: | Train Loss: {train_epoch_loss / len(train_loader):.4f} | Val Loss: {val_epoch_loss / len(val_loader):.4f} | '
@@ -225,7 +220,7 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
                 '\n'
             )
             log_file.flush()
-
+    print(f"\r")
     return best_model, loss_stats['val']
 
 
