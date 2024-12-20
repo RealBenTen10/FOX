@@ -291,7 +291,7 @@ class ConsequentLayer(torch.nn.Module):
         # x_plus = torch.cat([x, torch.ones(x.shape[0], 1)], dim=1)
         x_plus = torch.ones(len(x), 1)
 
-        # Need to switch dimansion for the multipy, then switch back:
+        # Need to switch dimension for the multipy, then switch back:
         y_pred = torch.matmul(self.coeff, x_plus.t())
 
         return y_pred.transpose(0, 2)  # swaps cases and rules

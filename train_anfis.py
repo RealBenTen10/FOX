@@ -151,25 +151,14 @@ def get_data(dataset, batch_size, columns_sel):
 
     # Encode targets based on the chosen encoding type
     # are the encoded values used???
-    if encoding_type == 'boolean':
-        y_train_encoded = boolean_encoding(y_train)
-    elif encoding_type == 'label':
-        y_train_encoded = label_encoding(y_train)
-    elif encoding_type == 'index':
-        y_train_encoded = index_encoding(y_train)
-    elif encoding_type == 'one_hot':
-        num_categories = len(np.unique(d_target))
-        y_train_encoded = one_hot_encoding(y_train, num_categories)
-    else:
-        raise ValueError(f"Unsupported encoding type: {encoding_type}")
-    print("Encoding_type: " + encoding_type)
+
 
     train_dataset = ClassifierDataset(torch.from_numpy(X_train).float(), torch.from_numpy(y_train).long())
     val_dataset = ClassifierDataset(torch.from_numpy(X_val).float(), torch.from_numpy(y_val).long())
 
     x = torch.Tensor(X_train)
     # encoded values
-    y = y_train_encoded
+    y = torch.Tensor(X_train)
     # encoded values...
     td = TensorDataset(x, y)
 
@@ -181,8 +170,10 @@ def get_data(dataset, batch_size, columns_sel):
 
 def train(dataset, learning_rate, batch_size, columns_sel, encoding_type, sigmoid, mfs_type):
     train_data, val_data, x, columns_sel = get_data(dataset, batch_size, columns_sel)
+
     # y_train holds the encoded values... but is not used -_-
     x_train, y_train = x.dataset.tensors
+
     # Create ANFIS model
     model = make_anfis(x_train, device, num_mfs=3, num_out=2, hybrid=False)
     # Initialize optimizer

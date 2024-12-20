@@ -128,8 +128,11 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
             optimizer.zero_grad()
 
             y_train_pred = model(X_train_batch)
-            encoded_labels = encoding_function(y_train_batch, device, num_categories=2)
-            train_loss = criterion(y_train_pred, encoded_labels)
+            # encoded_labels = encoding_function(y_train_batch, device, num_categories=2)
+
+            print("y_train_batch: ", y_train_batch)
+            print("y train pred: ", y_train_pred)
+            train_loss = criterion(y_train_pred, y_train_batch)
             train_acc = multi_acc(y_train_pred, y_train_batch, sigmoid)
 
             # Predictions and Metrics
