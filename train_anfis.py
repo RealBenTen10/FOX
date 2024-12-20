@@ -1,4 +1,5 @@
 import itertools
+import time
 import torch
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.model_selection import train_test_split
@@ -56,7 +57,7 @@ params_list = [
     [8.878741925407075e-05, 256],
     [0.0005634190655247415, 128]
 ]
-params = params_list[1]
+params = params_list[5]
 
 # Membership function types
 mfs_types = [
@@ -151,14 +152,24 @@ def get_data(dataset, batch_size, columns_sel):
 
     # Encode targets based on the chosen encoding type
     # are the encoded values used???
-
+    if encoding_type == 'boolean':
+        y_train_encoded = boolean_encoding(y_train)
+    elif encoding_type == 'label':
+        y_train_encoded = label_encoding(y_train)
+    elif encoding_type == 'index':
+        y_train_encoded = index_encoding(y_train)
+    elif encoding_type == 'one_hot':
+        num_categories = len(np.unique(d_target))
+        y_train_encoded = one_hot_encoding(y_train, num_categories)
+    else:
+        raise ValueError(f"Unsupported encoding type: {encoding_type}")
 
     train_dataset = ClassifierDataset(torch.from_numpy(X_train).float(), torch.from_numpy(y_train).long())
     val_dataset = ClassifierDataset(torch.from_numpy(X_val).float(), torch.from_numpy(y_val).long())
 
     x = torch.Tensor(X_train)
     # encoded values
-    y = torch.Tensor(X_train)
+    y = y_train_encoded
     # encoded values...
     td = TensorDataset(x, y)
 
@@ -170,21 +181,23 @@ def get_data(dataset, batch_size, columns_sel):
 
 def train(dataset, learning_rate, batch_size, columns_sel, encoding_type, sigmoid, mfs_type):
     train_data, val_data, x, columns_sel = get_data(dataset, batch_size, columns_sel)
-
     # y_train holds the encoded values... but is not used -_-
     x_train, y_train = x.dataset.tensors
-
     # Create ANFIS model
-    model = make_anfis(x_train, device, num_mfs=3, num_out=2, hybrid=False)
+    model = make_anfis(x_train, device, num_mfs=3, num_out=2, hybrid=False, mfs_type=mfs_type)
     # Initialize optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     # (Re-)train ANFIS model using optimizer Adam
-    model, score = train_anfis_cat(model, train_data, val_data, optimizer, epochs, encoding_type, sigmoid, device)
+
+    sigmoid_str = "sigmoid" if sigmoid else "softmax"
+    log_file = open(f"train_logs/train_log_{dataset_name}_{encoding_type}_{sigmoid_str}_{str(mfs_type)}.txt", "w")
+    model, score = train_anfis_cat(model, train_data, val_data, optimizer, epochs, encoding_type, sigmoid, device, log_file=log_file)
+    log_file.close()
     # Save the trained model
     sigmoid_str = "sigmoid" if sigmoid else "softmax"
     model_name = f"model_{dataset_name}_{encoding_type}_{sigmoid_str}_{str(mfs_type)}"
     torch.save(model, 'models/' + model_name + '.h5')
-    torch.save(model, 'streamlit_fox/models/' + model_name + '.h5')
+    # torch.save(model, 'streamlit_fox/models/' + model_name + '.h5')
     # Get metrics for the model
     load_model.metrics(dataset, columns_sel, encoding_type, sigmoid, mfs_type, device)
     return model
@@ -225,14 +238,40 @@ def get_columns_sel(dataset_name):
         return []
     return columns_sel
 
+# params_index = dataset_names.index(dataset_name)
+# learning_rate = params_list[params_index][0]
+# batch_size = params_list[params_index][1]
 
 # select columns
-columns_sel = get_columns_sel(dataset_name)
-# number of features selected (leads to the selection of all?)
-n_features = len(columns_sel)
-# train model here
-model = train(dataset_name, n_features, learning_rate, batch_size, columns_sel[:n_features], encoding_type, True, mfs_type)
-model = train(dataset_name, n_features, learning_rate, batch_size, columns_sel[:n_features], encoding_type, False, mfs_type)
+# columns_sel = get_columns_sel(dataset_name)
+# # number of features selected (leads to the selection of all?)
+# n_features = len(columns_sel)
+# # train model here
+# model = train(dataset_name, learning_rate, batch_size, columns_sel[:n_features], encoding_type, sigmoid, mfs_type)
 # train models there
-#for mfs_type in mfs_types:
-#    model = train(dataset_name, n_features, learning_rate, batch_size, columns_sel[:n_features], encoding_type, sigmoid, mfs_type)
+
+configurations = list(itertools.product(['bpic2011_f3'], encoding_types, [True, False], mfs_types))
+for (i, (dataset_name, encoding_type, sigmoid, mfs_type)) in enumerate(configurations, start=1):
+    # Reseed RNGs
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+    params_index = dataset_names.index(dataset_name)
+    learning_rate = 0.01
+    batch_size = params_list[params_index][1]
+
+    # select columns
+    columns_sel = get_columns_sel(dataset_name)
+    # number of features selected (leads to the selection of all?)
+    n_features = len(columns_sel)
+
+    # train model for specific config
+    try:
+        print(f"Configuration {i}/{len(configurations)}:", encoding_type, sigmoid, mfs_type, '-', end=' ', flush=True)
+        start = time.perf_counter()
+        model = train(dataset_name, learning_rate, batch_size, columns_sel[:n_features], encoding_type, sigmoid, mfs_type)
+        end = time.perf_counter()
+        print("Succeeded", f"{end - start}s", flush=True)
+    except Exception:
+        print("Failed", flush=True)
+        pass

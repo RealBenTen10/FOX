@@ -97,9 +97,7 @@ def multi_acc(y_pred, y_test, sigmoid):
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding_type, sigmoid, device):
-    print(device)
-    print("Begin training.")
+def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding_type, sigmoid, device, log_file=None):
     accuracy_stats = {'train': [], "val": []}
     loss_stats = {'train': [], "val": []}
     precision_stats = {'train': [], "val": []}
@@ -114,7 +112,7 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
     encoding_function = get_encoding_function(encoding_type)
     X_train_batch, y_train_batch = 0, 0
 
-    for e in tqdm(range(1, EPOCHS + 1)):
+    for e in range(1, EPOCHS + 1):
         train_epoch_loss = 0
         train_epoch_acc = 0
         train_epoch_precision = 0
@@ -213,18 +211,20 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
             best_epoch = e
             best_model = model
         if e - best_epoch > 10:
-            print(best_epoch)
+            # print(best_epoch)
             break
-        '''
-        print(
-            f'Epoch {e:03}: | Train Loss: {train_epoch_loss / len(train_loader):.4f} | Val Loss: {val_epoch_loss / len(val_loader):.4f} | '
-            f'Train Acc: {train_epoch_acc / len(train_loader):.4f} | Val Acc: {val_epoch_acc / len(val_loader):.4f} | '
-            f'Train Prec: {train_epoch_precision / len(train_loader):.4f} | Val Prec: {val_epoch_precision / len(val_loader):.4f} | '
-            f'Train Rec: {train_epoch_recall / len(train_loader):.4f} | Val Rec: {val_epoch_recall / len(val_loader):.4f} | '
-            f'Train F1: {train_epoch_f1 / len(train_loader):.4f} | Val F1: {val_epoch_f1 / len(val_loader):.4f} | '
-            f'Train AUC: {train_epoch_auc / len(train_loader):.4f} | Val AUC: {val_epoch_auc / len(val_loader):.4f}'
-        )
-        '''
+        
+        if log_file:
+            log_file.write(
+                f'Epoch {e:03}: | Train Loss: {train_epoch_loss / len(train_loader):.4f} | Val Loss: {val_epoch_loss / len(val_loader):.4f} | '
+                f'Train Acc: {train_epoch_acc / len(train_loader):.4f} | Val Acc: {val_epoch_acc / len(val_loader):.4f} | '
+                f'Train Prec: {train_epoch_precision / len(train_loader):.4f} | Val Prec: {val_epoch_precision / len(val_loader):.4f} | '
+                f'Train Rec: {train_epoch_recall / len(train_loader):.4f} | Val Rec: {val_epoch_recall / len(val_loader):.4f} | '
+                f'Train F1: {train_epoch_f1 / len(train_loader):.4f} | Val F1: {val_epoch_f1 / len(val_loader):.4f} | '
+                f'Train AUC: {train_epoch_auc / len(train_loader):.4f} | Val AUC: {val_epoch_auc / len(val_loader):.4f}'
+                '\n'
+            )
+            log_file.flush()
 
     return best_model, loss_stats['val']
 
