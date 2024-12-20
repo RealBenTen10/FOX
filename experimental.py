@@ -220,7 +220,6 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
                 '\n'
             )
             log_file.flush()
-    print(f"\r")
     return best_model, loss_stats['val']
 
 

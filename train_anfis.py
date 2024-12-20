@@ -263,11 +263,12 @@ for (i, (dataset_name, encoding_type, sigmoid, mfs_type)) in enumerate(configura
 
     # train model for specific config
     try:
-        print(f"Configuration {i}/{len(configurations)}:", encoding_type, sigmoid, mfs_type, "for ", dataset_name, " - \n", end="", flush=True)
+        print(f"Configuration {i}/{len(configurations)}:", encoding_type, sigmoid, mfs_type, "for ", dataset_name, " - \n", end="")
         start = time.perf_counter()
         model = train(dataset_name, learning_rate, batch_size, columns_sel[:n_features], encoding_type, sigmoid, mfs_type)
         end = time.perf_counter()
-        print("\033[F", "Succeeded in ", f"{end - start}s", flush=True)
+        # print("\033[F\033[F\033[F", end="")
+        print("\rSucceeded in ", f"{end - start}s", flush=True)
     except Exception:
         print("Failed", flush=True)
         pass
