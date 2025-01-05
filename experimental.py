@@ -1,6 +1,5 @@
 import torch
 import torch.nn.functional as f
-from tqdm.notebook import tqdm
 import numpy as np
 from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score
 
@@ -9,8 +8,8 @@ seed = 123
 np.random.seed(seed)
 torch.manual_seed(seed)
 dtype = torch.float
-
-# One_hot encoding
+# Choose device - don't change this
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def make_one_hot(data, device, num_categories, dtype=torch.float):
@@ -20,22 +19,13 @@ def make_one_hot(data, device, num_categories, dtype=torch.float):
     y.requires_grad = True
     return y
 
-# Label Encoding
-
-
 def make_label_encoding(data, device, num_categories=None, dtype=torch.float):
     y = data.clone().detach().long()  # Properly clone and detach input tensor
     return y
 
-# Index Encoding
-
-
 def make_index_encoding(data, device, num_categories=None, dtype=torch.float):
     y = data.clone().detach().long()  # Properly clone and detach input tensor
     return y
-
-# Boolean Encoding
-
 
 def make_boolean_encoding(data, device, num_categories, dtype=torch.float):
     num_entries = len(data)
@@ -43,9 +33,6 @@ def make_boolean_encoding(data, device, num_categories, dtype=torch.float):
     y = torch.zeros((num_entries, num_categories), dtype=dtype, device=device).scatter(1, cats, 1)
     y = y.to(dtype)  # Ensure the tensor is of floating-point type
     return y
-
-# Get encoding function based on type
-
 
 def get_encoding_function(encoding_type):
     if encoding_type == "one_hot":
@@ -60,35 +47,29 @@ def get_encoding_function(encoding_type):
     else:
         raise ValueError(f"Unknown encoding type: {encoding_type}")
 
-# Choose device - don't change this
-
-
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-
-def get_loss_function(bce_with_logits, l1_loss, smooth_l1):
-    if bce_with_logits:
-        return torch.nn.BCEWithLogitsLoss()
-    elif l1_loss:
+def get_loss_function(loss_function):
+    if loss_function == "BCE":
+        return torch.nn.BCELoss()
+    elif loss_function == "L1":
         return torch.nn.L1Loss()
-    elif smooth_l1:
+    elif loss_function == "SmoothL1":
         return torch.nn.SmoothL1Loss()
     else:
         return torch.nn.CrossEntropyLoss()
 
-# Get Accuracy
-# Here the predicted values are tested against the true values
-# For sepsis_cases_1 the model always predicts 0 which results in the same accuracy each epoch
-
 
 def multi_acc(y_pred, y_test, sigmoid):
-    # Sigmoid function instead of softmax
+    # Sigmoid function added (before only softmax)
+    # Get Accuracy
+    # Here the predicted values are tested against the true values
+    # For sepsis_cases_1 the model always predicts 0 which results in the same accuracy each epoch
     if sigmoid:
         y_pred_sigmoid = (torch.sigmoid(y_pred) > 0.5).long()
         _, y_pred_tags = torch.max(y_pred_sigmoid, dim=1)
     else:
         y_pred_softmax = torch.log_softmax(y_pred, dim=1)
         _, y_pred_tags = torch.max(y_pred_softmax, dim=1)
+    # print("y_pred_tags: \n", y_pred_tags)
     correct_pred = (y_pred_tags == y_test).float()
     acc = correct_pred.sum() / len(correct_pred)
     return acc
@@ -97,7 +78,8 @@ def multi_acc(y_pred, y_test, sigmoid):
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding_type, sigmoid, device, log_file=None):
+def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding_type,
+                    sigmoid, device, loss_function, log_file=None):
     accuracy_stats = {'train': [], "val": []}
     loss_stats = {'train': [], "val": []}
     precision_stats = {'train': [], "val": []}
@@ -105,7 +87,7 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
     f1_stats = {'train': [], "val": []}
     auc_stats = {'train': [], "val": []}
     # Get loss function - if all are false, the default is CrossEntropyLoss
-    criterion = get_loss_function(False, False, False)
+    criterion = get_loss_function(loss_function)
     best_loss = np.inf
     best_epoch = 0
     best_model = 0
@@ -125,13 +107,18 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
             X_train_batch, y_train_batch = X_train_batch.to(device), y_train_batch.to(device)
             optimizer.zero_grad()
             y_train_pred = model(X_train_batch)
-            train_loss = criterion(y_train_pred, y_train_batch)
+
+            # we need y_train_pred_loss for train_loss and y_train_pred for train_acc
+            if loss_function == "SmoothL1" or loss_function == "L1" or loss_function == "BCE":
+                y_train_pred_loss = y_train_pred[:, 0].requires_grad_(True).to(device)
+                train_loss = criterion(y_train_pred_loss, y_train_batch.float())
+            else:
+                train_loss = criterion(y_train_pred, y_train_batch)
             train_acc = multi_acc(y_train_pred, y_train_batch, sigmoid)
 
             # Predictions and Metrics
             y_pred_prob = torch.sigmoid(y_train_pred) if sigmoid else f.softmax(y_train_pred, dim=1)
             y_pred_binary = (y_pred_prob[:, 1] > 0.5).cpu().numpy()
-            # true label?
             y_true = y_train_batch.cpu().numpy()
 
             train_precision = precision_score(y_true, y_pred_binary, zero_division=0)
@@ -152,22 +139,22 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
 
         # Validation loop
         with torch.no_grad():
-            val_epoch_loss = 0
-            val_epoch_acc = 0
-            val_epoch_precision = 0
-            val_epoch_recall = 0
-            val_epoch_f1 = 0
-            val_epoch_auc = 0
+            val_epoch_loss = val_epoch_acc = val_epoch_precision = val_epoch_recall = val_epoch_f1 = val_epoch_auc = 0
 
-            # model.fit_coeff(X_train_batch.float(), encoding_function(y_train_batch, device, num_categories=2))
-            model.fit_coeff(X_train_batch.float(), y_train_batch)
+            # Decide if you want to use the encoding or not - the values do not change...
+            model.fit_coeff(X_train_batch.float(), encoding_function(y_train_batch, device, num_categories=2))
+            # model.fit_coeff(X_train_batch.float(), y_train_batch)
 
             for X_val_batch, y_val_batch in val_loader:
                 X_val_batch, y_val_batch = X_val_batch.to(device), y_val_batch.to(device)
-
                 y_val_pred = model(X_val_batch)
-                # encoded_labels = encoding_function(y_val_batch, device, num_categories=2)
-                val_loss = criterion(y_val_pred, y_val_batch)
+
+                # we need y_val_pred_loss for val_loss and y_val_pred for val_acc
+                if loss_function == "SmoothL1" or loss_function == "L1" or loss_function == "BCE":
+                    y_val_pred_loss = y_val_pred[:, 0].requires_grad_(True).to(device)
+                    val_loss = criterion(y_val_pred_loss, y_val_batch.float())
+                else:
+                    val_loss = criterion(y_val_pred, y_val_batch)
                 val_acc = multi_acc(y_val_pred, y_val_batch, sigmoid)
 
                 # Predictions and Metrics
@@ -222,5 +209,3 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
             )
             log_file.flush()
     return best_model, loss_stats['val']
-
-

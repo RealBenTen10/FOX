@@ -1,7 +1,7 @@
 import itertools
 import time
 import torch
-from torch.utils.data import TensorDataset, DataLoader
+from torch.utils.data import TensorDataset
 from sklearn.model_selection import train_test_split
 from membership import MfsType, make_anfis
 from experimental import train_anfis_cat
@@ -9,7 +9,7 @@ import load_model
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
 import pandas as pd
-import torch
+
 
 # Set the encoding type here: choose 'boolean', 'label', 'index', or 'one_hot'
 # Available encodings:
@@ -22,6 +22,8 @@ encoding_types = [
 # pick the encoding of your choice
 encoding_type = encoding_types[3]
 
+# choose the dataset_number for the name and learning rate + batch size
+dataset_number = 1
 # Change the dataset_name to create a new trained model (.h5 file)
 # Available datasets:
 dataset_names = [
@@ -39,7 +41,7 @@ dataset_names = [
     'prepaid_travelcost'
 ]
 # pick the dataset of your choice
-dataset_name = dataset_names[11]
+dataset_name = dataset_names[dataset_number]
 
 # the parameters have the same order as the dataset_names
 # so params[0] has the parameters lr and batch_size of sepsis_cases_1
@@ -58,7 +60,7 @@ params_list = [
     [8.878741925407075e-05, 256],
     [0.0005634190655247415, 128]
 ]
-params = params_list[0]
+params = params_list[dataset_number]
 
 # Membership function types
 mfs_types = [
@@ -70,8 +72,16 @@ mfs_types = [
 ]
 mfs_type = mfs_types[2]
 
+loss_functions = [
+    "BCE",
+    "L1",
+    "SmoothL1",
+    "CrossEntropy"
+]
+loss_function = loss_functions[3]
+
 # Set some parameters
-epochs = 10            # Set the number of epochs
+epochs = 100            # Set the number of epochs
 sigmoid = False         # use sigmoid instead of softmax
 train_size = 0.8        # Set the split size - 0.8 = 20% validation and 80% train
 random_state = 69       # Set the random state
@@ -79,10 +89,13 @@ learning_rate = params[0]   # Set the learning rate
 batch_size = params[1]        # Set the batch_size
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # Set the device - don't change this
 num_mfs = 3             # Set number of membership functions? or number of possible values (low, med, high)
-                        #   Answer: Fuzzification creates a probability distribution how likely each variable belongs to e certain fuzzy term, in this case LOW, MEDIUM, HIGH.
-                        #           For each fuzzy variable (feature vector item) and each fuzzy term (LOW, MEDIUM, HIGH or GOOD, NEUTRAL, BAD) there is a new membership function with its own learnable parameters
-                        #           So num_terms == num_mfs has to be true
-                        #           So this parameters defines how many terms you want to differentiate into and you have to create a MF for every term
+#   Answer: Fuzzification creates a probability distribution how likely each variable belongs to e certain fuzzy term,
+#   in this case LOW, MEDIUM, HIGH.
+#   For each fuzzy variable (feature vector item) and each fuzzy term (LOW, MEDIUM, HIGH or GOOD, NEUTRAL, BAD)
+#   there is a new membership function with its own learnable parameters
+#   So num_terms == num_mfs has to be true
+#   So these parameters define how many terms you want to differentiate into.
+#   you have to create a MF for every term
 
 
 # used for torch - otherwise random state could be different each time
@@ -168,7 +181,7 @@ def get_data(dataset, batch_size, columns_sel):
     train_dataset = ClassifierDataset(torch.from_numpy(X_train).float(), torch.from_numpy(y_train).long())
     val_dataset = ClassifierDataset(torch.from_numpy(X_val).float(), torch.from_numpy(y_val).long())
     x = torch.Tensor(X_train)
-    y = torch.Tensor(y_train)
+    y = torch.Tensor(y_train_encoded)
     td = TensorDataset(x, y)
 
     return (DataLoader(train_dataset, batch_size=batch_size, shuffle=False),
@@ -177,7 +190,7 @@ def get_data(dataset, batch_size, columns_sel):
             columns_sel)
 
 
-def train(dataset, learning_rate, batch_size, columns_sel, encoding_type, sigmoid, mfs_type):
+def train(dataset, learning_rate, batch_size, columns_sel, encoding_type, sigmoid, mfs_type, loss_function):
     train_data, val_data, x, columns_sel = get_data(dataset, batch_size, columns_sel)
     # y_train holds the encoded values... but is not used -_-
     x_train, y_train = x.dataset.tensors
@@ -188,16 +201,17 @@ def train(dataset, learning_rate, batch_size, columns_sel, encoding_type, sigmoi
 
     # (Re-)train ANFIS model using optimizer Adam
     sigmoid_str = "sigmoid" if sigmoid else "softmax"
-    log_file = open(f"train_logs/train_log2_{dataset_name}_{encoding_type}_{sigmoid_str}_{str(mfs_type)}.txt", "w")
-    model, score = train_anfis_cat(model, train_data, val_data, optimizer, epochs, encoding_type, sigmoid, device, log_file=log_file)
+    log_file = open(f"train_logs/train_log2_{dataset_name}_{encoding_type}_{sigmoid_str}_{str(mfs_type)}_{loss_function}.txt", "w")
+    model, score = train_anfis_cat(model, train_data, val_data, optimizer, epochs,
+                                   encoding_type, sigmoid, device, loss_function, log_file=log_file)
     log_file.close()
     # Save the trained model
     sigmoid_str = "sigmoid" if sigmoid else "softmax"
-    model_name = f"model2_{dataset_name}_{encoding_type}_{sigmoid_str}_{str(mfs_type)}"
+    model_name = f"model2_{dataset_name}_{encoding_type}_{sigmoid_str}_{str(mfs_type)}_{loss_function}"
     torch.save(model, 'models/' + model_name + '.h5')
     # torch.save(model, 'streamlit_fox/models/' + model_name + '.h5')
     # Get metrics for the model
-    load_model.metrics(dataset, columns_sel, encoding_type, sigmoid, mfs_type, device)
+    load_model.metrics(dataset, columns_sel, encoding_type, sigmoid, mfs_type, device, loss_function)
     return model
 
 
@@ -251,12 +265,12 @@ def get_columns_sel(dataset_name):
 # # train model here
 # model = train(dataset_name, learning_rate, batch_size, columns_sel[:n_features], encoding_type, sigmoid, mfs_type)
 # train models there
-model = train(dataset_name, learning_rate, batch_size, get_columns_sel(dataset_name), encoding_type, sigmoid, mfs_type)
+# model = train(dataset_name, learning_rate, batch_size, get_columns_sel(dataset_name), encoding_type, sigmoid, mfs_type, loss_function)
 
 succeeded = 0
-configurations = list(itertools.product(['sepsis_cases_1'], encoding_types, [True, False], mfs_types))
-if False:
-    for (i, (dataset_name, encoding_type, sigmoid, mfs_type)) in enumerate(configurations, start=1):
+configurations = list(itertools.product(dataset_names, loss_functions, mfs_types))
+if True:
+    for (i, (dataset_name, loss_function, mfs_type)) in enumerate(configurations, start=1):
         # Reseed RNGs
         np.random.seed(seed)
         torch.manual_seed(seed)
@@ -271,9 +285,9 @@ if False:
 
         # train model for specific config
         try:
-            print(f"Configuration {i}/{len(configurations)}:", encoding_type, sigmoid, mfs_type, "for ", dataset_name, " - \n", end="")
+            print(f"Configuration {i}/{len(configurations)}:", encoding_type, " True ", mfs_type, "for ", dataset_name, " - \n", end="")
             start = time.perf_counter()
-            model = train(dataset_name, learning_rate, batch_size, columns_sel[:n_features], encoding_type, sigmoid, mfs_type)
+            model = train(dataset_name, learning_rate, batch_size, columns_sel[:n_features], encoding_types[3], True, mfs_type, loss_function)
             end = time.perf_counter()
             # print("\033[F\033[F\033[F", end="")
             print("\r Succeeded in ", f"{end - start}s", flush=True)
