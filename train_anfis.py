@@ -30,18 +30,18 @@ dataset_number = 1
 # Change the dataset_name to create a new trained model (.h5 file)
 # Available datasets:
 dataset_names = [
+    'bpic2012_declined',
+    'bpic2012_cancelled',
+    'production',
+    'prepaid_travelcost',
+    'bpic2011_f4',
+    'bpic2011_f3',
+    'bpic2012_accepted',
     'sepsis_cases_1',
     'sepsis_cases_2',
     'sepsis_cases_4',
     'bpic2011_f1',
-    'bpic2011_f2',
-    'bpic2011_f3',
-    'bpic2011_f4',
-    'bpic2012_accepted',
-    'bpic2012_declined',
-    'bpic2012_cancelled',
-    'production',
-    'prepaid_travelcost'
+    'bpic2011_f2'
 ]
 # pick the dataset of your choice
 dataset_name = dataset_names[dataset_number]
@@ -71,9 +71,7 @@ mfs_types = [
     MfsType.DSigmoid,
     MfsType.Gauss,
     MfsType.Sigmoid,
-    MfsType.Triangular,
-    MfsType.Trapezoid,
-    MfsType.Exponential
+    MfsType.Triangular
 ]
 mfs_type = mfs_types[2]
 
@@ -83,6 +81,7 @@ loss_functions = [
     "SmoothL1",
     "CrossEntropy"
 ]
+loss_function = loss_functions[3]
 
 # Set some parameters
 epochs = 10            # Set the number of epochs
@@ -289,11 +288,10 @@ if True:
 
         # train model for specific config
         try:
-            print(f"Configuration {i}/{len(configurations)}:", encoding_type, " True ", mfs_type, "for ", dataset_name, " - \n", end="")
+            print(f"Configuration {i}/{len(configurations)}:", encoding_type, " False ", mfs_type, "for ", dataset_name, " - " ,loss_function)
             start = time.perf_counter()
-            model = train(dataset_name, learning_rate, batch_size, columns_sel[:n_features], encoding_types[3], True, mfs_type, loss_function)
+            model = train(dataset_name, learning_rate, batch_size, columns_sel[:n_features], encoding_types[3], False, mfs_type, loss_function)
             end = time.perf_counter()
-            # print("\033[F\033[F\033[F", end="")
             print("\r Succeeded in ", f"{end - start}s", flush=True)
             succeeded += 1
         except Exception:
