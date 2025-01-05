@@ -19,7 +19,8 @@ encoding_types = [
     'boolean',
     'label',
     'index',
-    'one_hot'
+    'one_hot',
+    None
 ]
 # pick the encoding of your choice
 encoding_type = encoding_types[3]
@@ -75,6 +76,13 @@ mfs_types = [
     MfsType.Exponential
 ]
 mfs_type = mfs_types[2]
+
+loss_functions = [
+    "BCE",
+    "L1",
+    "SmoothL1",
+    "CrossEntropy"
+]
 
 # Set some parameters
 epochs = 10            # Set the number of epochs
