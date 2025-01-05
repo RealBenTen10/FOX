@@ -68,7 +68,9 @@ mfs_types = [
     MfsType.DSigmoid,
     MfsType.Gauss,
     MfsType.Sigmoid,
-    MfsType.Triangular
+    MfsType.Triangular,
+    MfsType.Trapezoid,
+    MfsType.Exponential
 ]
 mfs_type = mfs_types[2]
 
