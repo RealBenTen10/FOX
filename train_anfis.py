@@ -11,6 +11,8 @@ import numpy as np
 import pandas as pd
 import torch
 
+torch.set_printoptions(threshold=1_000_000)
+
 # Set the encoding type here: choose 'boolean', 'label', 'index', or 'one_hot'
 # Available encodings:
 encoding_types = [
@@ -247,7 +249,8 @@ def get_columns_sel(dataset_name):
 # model = train(dataset_name, learning_rate, batch_size, columns_sel[:n_features], encoding_type, sigmoid, mfs_type)
 # train models there
 
-configurations = list(itertools.product(['sepsis_cases_1'], encoding_types, [True, False], mfs_types))
+# configurations = list(itertools.product(['sepsis_cases_1'], encoding_types, [False], mfs_types))
+configurations = list(itertools.product(dataset_names, ["one_hot"], [False], mfs_types))
 for (i, (dataset_name, encoding_type, sigmoid, mfs_type)) in enumerate(configurations, start=1):
     # Reseed RNGs
     np.random.seed(seed)
@@ -263,7 +266,7 @@ for (i, (dataset_name, encoding_type, sigmoid, mfs_type)) in enumerate(configura
 
     # train model for specific config
     try:
-        print(f"Configuration {i}/{len(configurations)}:", encoding_type, sigmoid, mfs_type, "for ", dataset_name, " - \n", end="")
+        print(f"Configuration {i}/{len(configurations)}:", encoding_type, sigmoid, mfs_type, "for ", dataset_name, " -")
         start = time.perf_counter()
         model = train(dataset_name, learning_rate, batch_size, columns_sel[:n_features], encoding_type, sigmoid, mfs_type)
         end = time.perf_counter()
