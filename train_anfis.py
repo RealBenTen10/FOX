@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 
-torch.set_printoptions(threshold=1_000_000)
+# torch.set_printoptions(threshold=1_000_000)
 
 # Set the encoding type here: choose 'boolean', 'label', 'index', or 'one_hot'
 # Available encodings:
