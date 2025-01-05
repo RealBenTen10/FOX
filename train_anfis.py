@@ -37,10 +37,11 @@ dataset_names = [
     'bpic2012_accepted',
     'bpic2012_declined',
     'bpic2012_cancelled',
-    'production'
+    'production',
+    'prepaid_travelcost'
 ]
 # pick the dataset of your choice
-dataset_name = dataset_names[0]
+dataset_name = dataset_names[11]
 
 # the parameters have the same order as the dataset_names
 # so params[0] has the parameters lr and batch_size of sepsis_cases_1
@@ -69,10 +70,10 @@ mfs_types = [
     MfsType.Sigmoid,
     MfsType.Triangular
 ]
-mfs_type = mfs_types[0]
+mfs_type = mfs_types[2]
 
 # Set some parameters
-epochs = 100            # Set the number of epochs
+epochs = 10            # Set the number of epochs
 sigmoid = False         # use sigmoid instead of softmax
 train_size = 0.8        # Set the split size - 0.8 = 20% validation and 80% train
 random_state = 69       # Set the random state
@@ -169,7 +170,7 @@ def get_data(dataset, batch_size, columns_sel):
     train_dataset = ClassifierDataset(torch.from_numpy(X_train).float(), torch.from_numpy(y_train).long())
     val_dataset = ClassifierDataset(torch.from_numpy(X_val).float(), torch.from_numpy(y_val).long())
     x = torch.Tensor(X_train)
-    y = y_train_encoded
+    y = torch.Tensor(y_train)
     td = TensorDataset(x, y)
 
     return (DataLoader(train_dataset, batch_size=batch_size, shuffle=False),
@@ -189,12 +190,12 @@ def train(dataset, learning_rate, batch_size, columns_sel, encoding_type, sigmoi
 
     # (Re-)train ANFIS model using optimizer Adam
     sigmoid_str = "sigmoid" if sigmoid else "softmax"
-    log_file = open(f"train_logs/train_log_{dataset_name}_{encoding_type}_{sigmoid_str}_{str(mfs_type)}.txt", "w")
+    log_file = open(f"train_logs/train_log2_{dataset_name}_{encoding_type}_{sigmoid_str}_{str(mfs_type)}.txt", "w")
     model, score = train_anfis_cat(model, train_data, val_data, optimizer, epochs, encoding_type, sigmoid, device, log_file=log_file)
     log_file.close()
     # Save the trained model
     sigmoid_str = "sigmoid" if sigmoid else "softmax"
-    model_name = f"model_{dataset_name}_{encoding_type}_{sigmoid_str}_{str(mfs_type)}"
+    model_name = f"model2_{dataset_name}_{encoding_type}_{sigmoid_str}_{str(mfs_type)}"
     torch.save(model, 'models/' + model_name + '.h5')
     # torch.save(model, 'streamlit_fox/models/' + model_name + '.h5')
     # Get metrics for the model
@@ -233,6 +234,10 @@ def get_columns_sel(dataset_name):
     elif dataset_name == 'production':
         columns_sel = ['Work_Order_Qty', 'Activity_Turning & Milling - Machine 4', 'Resource_ID0998', 'Resource_ID4794',
                        'Resource.1_Machine 4 - Turning & Milling']
+    elif dataset_name == 'prepaid_travelcost':
+        columns_sel = ['RequestedAmount', 'RequestForPaymentSUBMITTEDbyEMPLOYEE',
+                       'RequestForPaymentAPPROVEDbyADMINISTRATION', 'RequestForPaymentAPPROVEDbyBUDGETOWNER',
+                       'RequestForPaymentFINAL_APPROVEDbySUPERVISOR', 'RequestPayment']
     else:
         return []
     return columns_sel
@@ -248,30 +253,34 @@ def get_columns_sel(dataset_name):
 # # train model here
 # model = train(dataset_name, learning_rate, batch_size, columns_sel[:n_features], encoding_type, sigmoid, mfs_type)
 # train models there
+model = train(dataset_name, learning_rate, batch_size, get_columns_sel(dataset_name), encoding_type, sigmoid, mfs_type)
 
-# configurations = list(itertools.product(['sepsis_cases_1'], encoding_types, [False], mfs_types))
-configurations = list(itertools.product(dataset_names, ["one_hot"], [False], mfs_types))
-for (i, (dataset_name, encoding_type, sigmoid, mfs_type)) in enumerate(configurations, start=1):
-    # Reseed RNGs
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    params_index = dataset_names.index(dataset_name)
-    learning_rate = params_list[params_index][0]
-    batch_size = params_list[params_index][1]
+succeeded = 0
+configurations = list(itertools.product(['sepsis_cases_1'], encoding_types, [True, False], mfs_types))
+if False:
+    for (i, (dataset_name, encoding_type, sigmoid, mfs_type)) in enumerate(configurations, start=1):
+        # Reseed RNGs
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        params_index = dataset_names.index(dataset_name)
+        learning_rate = params_list[params_index][0]
+        batch_size = params_list[params_index][1]
 
-    # select columns
-    columns_sel = get_columns_sel(dataset_name)
-    # number of features selected (leads to the selection of all?)
-    n_features = len(columns_sel)
+        # select columns
+        columns_sel = get_columns_sel(dataset_name)
+        # number of features selected (leads to the selection of all?)
+        n_features = len(columns_sel)
 
-    # train model for specific config
-    try:
-        print(f"Configuration {i}/{len(configurations)}:", encoding_type, sigmoid, mfs_type, "for ", dataset_name, " -")
-        start = time.perf_counter()
-        model = train(dataset_name, learning_rate, batch_size, columns_sel[:n_features], encoding_type, sigmoid, mfs_type)
-        end = time.perf_counter()
-        # print("\033[F\033[F\033[F", end="")
-        print("\rSucceeded in ", f"{end - start}s", flush=True)
-    except Exception:
-        print("Failed", flush=True)
-        pass
+        # train model for specific config
+        try:
+            print(f"Configuration {i}/{len(configurations)}:", encoding_type, sigmoid, mfs_type, "for ", dataset_name, " -")
+            start = time.perf_counter()
+            model = train(dataset_name, learning_rate, batch_size, columns_sel[:n_features], encoding_type, sigmoid, mfs_type)
+            end = time.perf_counter()
+            # print("\033[F\033[F\033[F", end="")
+            print("\r Succeeded in ", f"{end - start}s", flush=True)
+            succeeded += 1
+        except Exception:
+            print("\r Failed", flush=True)
+            pass
+print(succeeded, " of ", len(configurations), " succeeded")

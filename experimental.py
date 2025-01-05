@@ -160,14 +160,15 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
             val_epoch_f1 = 0
             val_epoch_auc = 0
 
-            model.fit_coeff(X_train_batch.float(), encoding_function(y_train_batch, device, num_categories=2))
+            # model.fit_coeff(X_train_batch.float(), encoding_function(y_train_batch, device, num_categories=2))
+            model.fit_coeff(X_train_batch.float(), y_train_batch)
 
             for X_val_batch, y_val_batch in val_loader:
                 X_val_batch, y_val_batch = X_val_batch.to(device), y_val_batch.to(device)
 
                 y_val_pred = model(X_val_batch)
-                encoded_labels = encoding_function(y_val_batch, device, num_categories=2)
-                val_loss = criterion(y_val_pred, encoded_labels)
+                # encoded_labels = encoding_function(y_val_batch, device, num_categories=2)
+                val_loss = criterion(y_val_pred, y_val_batch)
                 val_acc = multi_acc(y_val_pred, y_val_batch, sigmoid)
 
                 # Predictions and Metrics

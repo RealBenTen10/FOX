@@ -12,7 +12,7 @@ os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 def metrics(dataset_name, columns_sel, encoding, sigmoid, mfs_type, device):
     # Instead of loading the model, just use the model as input?
     sigmoid_str = "sigmoid" if sigmoid else "softmax"
-    model_name = f"model_{dataset_name}_{encoding}_{sigmoid_str}_{str(mfs_type)}"
+    model_name = f"model2_{dataset_name}_{encoding}_{sigmoid_str}_{str(mfs_type)}"
     model = torch.load('models/' + model_name + '.h5')
     model.to(device)
 
@@ -29,7 +29,7 @@ def metrics(dataset_name, columns_sel, encoding, sigmoid, mfs_type, device):
     y_test = y_test[y_test.columns[-1]]
 
     sigmoid_str = "sigmoid" if sigmoid else "softmax"
-    f = open(f"results/{dataset_name}_{encoding}_{sigmoid_str}_{str(mfs_type)}_results.csv", "w")
+    f = open(f"results/{dataset_name}_{encoding}_{sigmoid_str}_{str(mfs_type)}_results2.csv", "w")
     f.write("SELECTED COLUMNS;" + "\n")
     for element in columns_sel:
         f.write(element + "\n")
@@ -73,8 +73,8 @@ def metrics(dataset_name, columns_sel, encoding, sigmoid, mfs_type, device):
             print("skip")
         else:
             #f = open(dataset_name + "_results.csv", "w")
-            f.write("" + str(index_len) + ";" + str(len(target_test)) + ";" + str(
-                roc_auc_score(target_test, pred[:, 1])) + "\n")
+            print(target_test)
+            f.write("" + str(index_len) + ";" + str(len(target_test)) + ";" + str(roc_auc_score(target_test, pred[:, 1])) + "\n")
             auc_list.append(roc_auc_score(target_test, pred[:, 1]))
             f1_score_list.append(f1_score(target_test, pred2))
             list_index_len.append(index_len)
