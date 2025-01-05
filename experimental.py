@@ -95,6 +95,7 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
     X_train_batch, y_train_batch = 0, 0
 
     for e in range(1, EPOCHS + 1):
+        print(f"\rEpoch: ", e, "/", EPOCHS, end="", flush=True)
         train_epoch_loss = 0
         train_epoch_acc = 0
         train_epoch_precision = 0
@@ -196,7 +197,6 @@ def train_anfis_cat(model, train_loader, val_loader, optimizer, EPOCHS, encoding
         if e - best_epoch > 10:
             # print(best_epoch)
             break
-        print(f"\rEpoch: ", e, "/", EPOCHS, end="")
         if log_file:
             log_file.write(
                 f'Epoch {e:03}: | Train Loss: {train_epoch_loss / len(train_loader):.4f} | Val Loss: {val_epoch_loss / len(val_loader):.4f} | '

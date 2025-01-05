@@ -11,6 +11,8 @@ import numpy as np
 import pandas as pd
 
 
+torch.set_printoptions(threshold=1_000_000)
+
 # Set the encoding type here: choose 'boolean', 'label', 'index', or 'one_hot'
 # Available encodings:
 encoding_types = [
@@ -68,20 +70,14 @@ mfs_types = [
     MfsType.DSigmoid,
     MfsType.Gauss,
     MfsType.Sigmoid,
-    MfsType.Triangular
+    MfsType.Triangular,
+    MfsType.Trapezoid,
+    MfsType.Exponential
 ]
 mfs_type = mfs_types[2]
 
-loss_functions = [
-    "BCE",
-    "L1",
-    "SmoothL1",
-    "CrossEntropy"
-]
-loss_function = loss_functions[3]
-
 # Set some parameters
-epochs = 100            # Set the number of epochs
+epochs = 10            # Set the number of epochs
 sigmoid = False         # use sigmoid instead of softmax
 train_size = 0.8        # Set the split size - 0.8 = 20% validation and 80% train
 random_state = 69       # Set the random state

@@ -21,7 +21,8 @@ class MfsType(enum.Enum):
     Gauss = 2
     Bell = 3
     Triangular = 4
-    Trapezoid = 5
+    Trapezoid = 5,
+    Exponential = 6
     
     def __str__(self):
         return self.name
@@ -70,10 +71,12 @@ class BellMembFunc(torch.nn.Module):
         self.register_parameter('a', _mk_param(a))
         self.register_parameter('b', _mk_param(b))
         self.register_parameter('c', _mk_param(c))
-        self.b.register_hook(BellMembFunc.b_log_hook)
+        self.a.register_hook(BellMembFunc.log_hook)
+        self.b.register_hook(BellMembFunc.log_hook)
+        self.c.register_hook(BellMembFunc.log_hook)
 
     @staticmethod
-    def b_log_hook(grad):
+    def log_hook(grad):
         '''
             Possibility of a log(0) in the grad for b, giving a nan.
             Fix this by replacing any nan in the grad with ~0.
@@ -83,7 +86,8 @@ class BellMembFunc(torch.nn.Module):
 
     def forward(self, x):
         dist = torch.pow((x - self.c)/self.a, 2)
-        return torch.reciprocal(1 + torch.pow(dist, self.b))
+        membership = torch.reciprocal(1 + torch.pow(dist, self.b))
+        return membership
 
     def pretty(self):
         return 'BellMembFunc {} {} {}'.format(self.a, self.b, self.c)
@@ -194,13 +198,13 @@ class TrapezoidalMembFunc(torch.nn.Module):
     def forward(self, x):
         yvals = torch.zeros_like(x)
         if self.a < self.b:
-            incr = torch.ByteTensor(self.a < x) & torch.ByteTensor(x <= self.b)
+            incr = (self.a < x) & (x <= self.b)
             yvals[incr] = (x[incr] - self.a) / (self.b - self.a)
         if self.b < self.c:
-            decr = torch.ByteTensor(self.b < x) & torch.ByteTensor(x < self.c)
-            yvals[decr] = 1
+            plateau = (self.b < x) & (x <= self.c)
+            yvals[plateau] = 1
         if self.c < self.d:
-            decr = torch.ByteTensor(self.c <= x) & torch.ByteTensor(x < self.d)
+            decr = (self.c <= x) & (x < self.d)
             yvals[decr] = (self.d - x[decr]) / (self.d - self.c)
         return yvals
 
@@ -239,6 +243,43 @@ def make_sigmoid_mfs(alpha, c_list):
         Return a list of sigmoid membership functions
     '''
     return [SigmoidMembFunc(alpha, c) for c in c_list]
+
+
+class ExponentialMembFunc(torch.nn.Module):
+    '''
+        Exponential membership function
+    '''
+    def __init__(self, l, h=0.0):
+        super(ExponentialMembFunc, self).__init__()
+        self.register_parameter('l', _mk_param(l))
+        self.register_parameter('h', _mk_param(h))
+
+    def forward(self, x):
+        '''
+        Calculate membership value using the exponential formula:
+        u(x) = l * exp(-l * (x - h)) if x >= h else 0
+        '''
+        membership = torch.where(
+            x >= self.h,
+            abs(self.l) * torch.exp(-abs(self.l) * (x - self.h)),
+            torch.zeros_like(x)
+        )
+        assert not membership.isinf().any()
+        return membership
+
+    def pretty(self):
+        return 'ExponentialMembFunc lambda={} h={}'.format(self.l.item(), self.h.item())
+    
+
+def make_exp_mfs(llist, hlist):
+    '''
+    Create a list of ExponentialMembFunc instances.
+    num_mfs: Number of membership functions.
+    minval: Minimum value in the range.
+    maxval: Maximum value in the range.
+    range: Range of the input values.
+    '''
+    return [ExponentialMembFunc(l=l, h=h) for l, h in zip(llist, hlist)]
 
 
 class DsigMembFunc(torch.nn.Module):
@@ -300,6 +341,10 @@ def make_mfs(num_mfs, minval, maxval, range, mfs_type):
         clist1 = torch.linspace(minval, maxval - range / num_mfs, num_mfs).tolist()
         clist2 = torch.linspace(minval + range / num_mfs, maxval, num_mfs).tolist()
         return make_dsig_mfs(alpha, beta, clist1, clist2)
+    elif mfs_type == MfsType.Exponential:
+        llist = [10 / range] * num_mfs
+        hlist = torch.linspace(minval, maxval, num_mfs).tolist()
+        return make_exp_mfs(llist, hlist)
     elif mfs_type == MfsType.Gauss or not mfs_type:
         sigma = range / num_mfs
         mulist = torch.linspace(0, maxval, num_mfs).tolist()
