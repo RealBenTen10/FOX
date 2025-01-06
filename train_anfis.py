@@ -26,21 +26,21 @@ encoding_types = [
 encoding_type = encoding_types[3]
 
 # choose the dataset_number for the name and learning rate + batch size
-dataset_number = 1
+dataset_number = 9
 # Change the dataset_name to create a new trained model (.h5 file)
 # Available datasets:
 dataset_names = [
-    'sepsis_cases_1',
+    'sepsis_cases_1',       # 0
     'sepsis_cases_2',
-    'sepsis_cases_4',
+    'sepsis_cases_4',       # 2
     'bpic2011_f1',
-    'bpic2011_f2',
+    'bpic2011_f2',          # 4
     'bpic2011_f3',
-    'bpic2011_f4',
+    'bpic2011_f4',          # 6
     'bpic2012_accepted',
-    'bpic2012_declined',
+    'bpic2012_declined',    # 8
     'bpic2012_cancelled',
-    'production',
+    'production',           # 10
     # 'prepaid_travelcost'
 ]
 # pick the dataset of your choice
@@ -66,6 +66,8 @@ params_list = [
 ]
 params = params_list[dataset_number]
 
+
+
 # Membership function types
 mfs_types = [
     MfsType.Bell,
@@ -74,7 +76,7 @@ mfs_types = [
     MfsType.Sigmoid,
     MfsType.Triangular
 ]
-mfs_type = mfs_types[2]
+mfs_type = mfs_types[0]
 
 loss_functions = [
     "BCE",
@@ -82,10 +84,10 @@ loss_functions = [
     "SmoothL1",
     "CrossEntropy"
 ]
-loss_function = loss_functions[3]
+loss_function = loss_functions[0]
 
 # Set some parameters
-epochs = 100            # Set the number of epochs
+epochs = 10            # Set the number of epochs
 sigmoid = False         # use sigmoid instead of softmax
 train_size = 0.8        # Set the split size - 0.8 = 20% validation and 80% train
 random_state = 69       # Set the random state
@@ -292,7 +294,7 @@ if True:
 
         # train model for specific config
         # try:
-        print(f"Configuration {i}/{len(configurations)}:", encoding_type, " False ", mfs_type, "for ", dataset_name, " - " ,loss_function)
+        print(f"Configuration {i}/{len(configurations)}:", encoding_type, " False ", mfs_type, "for ", dataset_name, " - ", loss_function)
         start = time.perf_counter()
         model = train(dataset_name, learning_rate, batch_size, columns_sel[:n_features], encoding_types[3], False, mfs_type, loss_function)
         end = time.perf_counter()
