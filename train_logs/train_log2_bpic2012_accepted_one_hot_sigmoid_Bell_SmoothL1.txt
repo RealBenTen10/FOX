@@ -1,0 +1,1 @@
+Epoch 001: | Train Loss: 0.1603 | Val Loss: 0.1221 | Train Acc: 0.4989 | Val Acc: 0.5001 | Train Prec: 0.0000 | Val Prec: 0.0000 | Train Rec: 0.0000 | Val Rec: 0.0000 | Train F1: 0.0000 | Val F1: 0.0000 | Train AUC: 0.5000 | Val AUC: 0.5000
