@@ -1,0 +1,16 @@
+SELECTED COLUMNS;
+RequestedAmount
+RequestForPaymentSUBMITTEDbyEMPLOYEE
+RequestForPaymentAPPROVEDbyADMINISTRATION
+RequestForPaymentAPPROVEDbyBUDGETOWNER
+RequestForPaymentFINAL_APPROVEDbySUPERVISOR
+RequestPayment
+Classification
+----------------;
+LENGHT;NUMBEROFSAMPLES;ROC_AUC_SCORE
+1;11;0.3
+2;246;1.0
+3;71;1.0
+4;92;1.0
+ROC_AUC_SCORE weighted;0.9816666666666667;
+F1_SCORE weighted;0.0;
