@@ -1,12 +1,17 @@
-import streamlit as st
 import numpy as np
-import pandas as pd
 import load_weights
 import torch
-import os
 from PIL import Image
+import math
 import plotly.express as px
+import plotly.subplots as sp
+import os
+import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import seaborn as sns
+import matplotlib.pyplot as plt
+import streamlit as st
 
 st.set_page_config(page_title='FOX')
 
@@ -121,12 +126,7 @@ if submit:
     )
     st.plotly_chart(barplot)
 
-import streamlit as st
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
-import os
-import math
+
 
 with st.expander("ROC AUC Heatmap Analysis by Dataset"):
     # Load data
@@ -201,13 +201,6 @@ with st.expander("ROC AUC Heatmap Analysis by Dataset"):
 
     # Display heatmaps
     st.pyplot(fig)
-
-
-
-
-import plotly.express as px
-import plotly.subplots as sp
-import plotly.graph_objects as go
 
 with st.expander("ROC AUC Analysis over traces length for Membership/ Loss Function Combinations"):
     combined_results_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'combined_resultsNew.csv')
@@ -299,14 +292,6 @@ with st.expander("ROC AUC Analysis over traces length for Membership/ Loss Funct
         st.plotly_chart(fig)
     else:
         st.error("Die Datei 'combined_results.csv' wurde nicht gefunden.")
-
-import os
-import pandas as pd
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import seaborn as sns
-import matplotlib.pyplot as plt
-import streamlit as st
 
 # ROC AUC Analysis
 with st.expander("ROC AUC Analysis based on Length with varying parameters"):
@@ -455,15 +440,6 @@ with st.expander("ROC AUC Analysis based on Length with varying parameters"):
             st.plotly_chart(fig)
         else:
             st.warning(f"No data found for varying {param} with fixed other parameters.")
-
-import os
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import plotly.express as px
-import streamlit as st
 
 # Datei-Pfade
 agg_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'agg_combined_results_lr_batch.csv')
