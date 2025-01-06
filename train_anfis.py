@@ -30,18 +30,18 @@ dataset_number = 1
 # Change the dataset_name to create a new trained model (.h5 file)
 # Available datasets:
 dataset_names = [
-    'bpic2012_declined',
-    'bpic2012_cancelled',
-    'production',
-    'prepaid_travelcost',
-    'bpic2011_f4',
-    'bpic2011_f3',
-    'bpic2012_accepted',
     'sepsis_cases_1',
     'sepsis_cases_2',
     'sepsis_cases_4',
     'bpic2011_f1',
-    'bpic2011_f2'
+    'bpic2011_f2',
+    'bpic2011_f3',
+    'bpic2011_f4',
+    'bpic2012_accepted',
+    'bpic2012_declined',
+    'bpic2012_cancelled',
+    'production',
+    #'prepaid_travelcost'
 ]
 # pick the dataset of your choice
 dataset_name = dataset_names[dataset_number]
@@ -61,7 +61,8 @@ params_list = [
     [0.003375590702146598, 512],
     [0.004182032486569149, 512],
     [8.878741925407075e-05, 256],
-    [0.0005634190655247415, 128]
+    [0.0005634190655247415, 128],
+    #[0.0005634190655247415, 32]
 ]
 params = params_list[dataset_number]
 
@@ -84,7 +85,7 @@ loss_functions = [
 loss_function = loss_functions[3]
 
 # Set some parameters
-epochs = 10            # Set the number of epochs
+epochs = 100            # Set the number of epochs
 sigmoid = False         # use sigmoid instead of softmax
 train_size = 0.8        # Set the split size - 0.8 = 20% validation and 80% train
 random_state = 69       # Set the random state
@@ -270,6 +271,9 @@ def get_columns_sel(dataset_name):
 # train models there
 # model = train(dataset_name, learning_rate, batch_size, get_columns_sel(dataset_name), encoding_type, sigmoid, mfs_type, loss_function)
 
+dataset_names = list(reversed(dataset_names))
+params_list = list(reversed(params_list))
+
 succeeded = 0
 configurations = list(itertools.product(dataset_names, loss_functions, mfs_types))
 if True:
@@ -287,14 +291,14 @@ if True:
         n_features = len(columns_sel)
 
         # train model for specific config
-        try:
-            print(f"Configuration {i}/{len(configurations)}:", encoding_type, " False ", mfs_type, "for ", dataset_name, " - " , loss_function)
-            start = time.perf_counter()
-            model = train(dataset_name, learning_rate, batch_size, columns_sel[:n_features], encoding_types[3], False, mfs_type, loss_function)
-            end = time.perf_counter()
-            print("\r Succeeded in ", f"{end - start}s", flush=True)
-            succeeded += 1
-        except Exception:
-            print("\r Failed", flush=True)
-            pass
+        # try:
+        print(f"Configuration {i}/{len(configurations)}:", encoding_type, " False ", mfs_type, "for ", dataset_name, " - " ,loss_function)
+        start = time.perf_counter()
+        model = train(dataset_name, learning_rate, batch_size, columns_sel[:n_features], encoding_types[3], False, mfs_type, loss_function)
+        end = time.perf_counter()
+        print("\r Succeeded in ", f"{end - start}s", flush=True)
+        succeeded += 1
+        # except Exception:
+        #     print("\r Failed", flush=True)
+        #     pass
 print(succeeded, " of ", len(configurations), " succeeded")
