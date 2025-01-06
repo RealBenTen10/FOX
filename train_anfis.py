@@ -288,7 +288,7 @@ if True:
 
         # train model for specific config
         try:
-            print(f"Configuration {i}/{len(configurations)}:", encoding_type, " False ", mfs_type, "for ", dataset_name, " - " ,loss_function)
+            print(f"Configuration {i}/{len(configurations)}:", encoding_type, " False ", mfs_type, "for ", dataset_name, " - " , loss_function)
             start = time.perf_counter()
             model = train(dataset_name, learning_rate, batch_size, columns_sel[:n_features], encoding_types[3], False, mfs_type, loss_function)
             end = time.perf_counter()
