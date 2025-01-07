@@ -93,7 +93,7 @@ if submit:
         i += 1
 
     list_val = np.array(list_val)
-    model = torch.load(f'models/model_{dataset_name}.h5')
+    model = torch.load(f'models/model2_{dataset_name}_one_hot_sigmoid_Gauss_CrossEntropy.h5')
     pred = model(torch.Tensor([list_val]))
     pred2 = torch.argmax(pred, 1).detach().numpy()
 
@@ -320,6 +320,8 @@ with st.expander("ROC AUC Analysis by membership function for different learning
         ax.set_xlabel("Learning rate")
         ax.set_ylabel("Membership function")
 
+        ax.set_xticklabels([f"{float(label):.6f}" for label in heatmap_data.columns], rotation=45, ha="right")
+
         st.pyplot(fig)
     else:
         st.error("Die Datei 'agg_combined_results_lr_batch_epoch.csv' wurde nicht gefunden.")
@@ -385,8 +387,17 @@ with st.expander("ROC AUC Analysis by membership function for different learning
         height=800,
         width=800,
         showlegend=True,
-        legend_title="Learning rates"
+        legend_title="Learning rates",
+        xaxis_title="Prefix trace length",
+        yaxis_title="AUC ROC",
     )
+
+    # Sicherstellen, dass die y-Achse in jedem Subplot angezeigt wird
+    for annotation in fig['layout']['annotations']:
+        annotation['font'] = dict(size=10)
+
+    fig.update_xaxes(title_text="Prefix trace length", showline=True, showticklabels=True)
+    fig.update_yaxes(title_text="AUC ROC", showline=True, showticklabels=True)
 
     st.plotly_chart(fig)
 

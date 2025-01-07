@@ -102,7 +102,7 @@ def get_fire_strength(model, pred2):
 
 
 def metrics(dataset_name, columns_sel):
-    model = torch.load('models/model_' + dataset_name + '.h5')
+    model = torch.load(f'models/model2_{dataset_name}_one_hot_sigmoid_Gauss_CrossEntropy.h5')
     # model = torch.load('G_model_geo_0.h5')
     print(model)
     # exit()
