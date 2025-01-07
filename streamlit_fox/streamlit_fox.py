@@ -128,7 +128,7 @@ if submit:
 
 
 
-with st.expander("ROC AUC Heatmap Analysis by Dataset"):
+with st.expander("weighted ROC AUC Heatmap Analysis by Dataset"):
     # Load data
     data_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'agg_combined_resultsNew.csv')
     data = pd.read_csv(data_path)
@@ -157,8 +157,8 @@ with st.expander("ROC AUC Heatmap Analysis by Dataset"):
         best_combinations.append({
             "Dataset": dataset,
             "ROC AUC": best_row['ROC_AUC_SCOREweighted'],
-            "Loss Function": best_row['LossFunction'],
-            "Member Function": best_row['MemberFunction']
+            "Loss function": best_row['LossFunction'],
+            "Membership function": best_row['MemberFunction']
         })
 
         # Pivot data for heatmap, ensuring consistent axis ordering
@@ -170,9 +170,9 @@ with st.expander("ROC AUC Heatmap Analysis by Dataset"):
         ).reindex(index=unique_member_functions, columns=unique_loss_functions)
 
         sns.heatmap(heatmap_data, annot=True, fmt=".2f", cmap="coolwarm", ax=axes[i])
-        axes[i].set_title(f"ROC AUC Scores for {dataset}")
-        axes[i].set_xlabel("Loss Function")
-        axes[i].set_ylabel("Member Function")
+        axes[i].set_title(f"weighted ROC AUC Scores for {dataset}")
+        axes[i].set_xlabel("Loss function")
+        axes[i].set_ylabel("Membership function")
 
     # Hide unused subplots if the grid has extra cells
     for j in range(i + 1, len(axes)):
@@ -182,34 +182,34 @@ with st.expander("ROC AUC Heatmap Analysis by Dataset"):
     plt.tight_layout()
 
     # Display best combinations as a sortable table above heatmaps
-    st.write("### Best Combinations Across Datasets")
+    st.write("### Best combinations across datasets")
     best_combinations_df = pd.DataFrame(best_combinations)
-    sort_column = st.selectbox("Sort by column:", best_combinations_df.columns, index=1)
+    sort_column = st.selectbox("Sort table by column:", best_combinations_df.columns, index=0)
     ascending_order = st.radio("Order:", ["Ascending", "Descending"]) == "Ascending"
-    st.write("### Combination Heatmap of ROC AUC per Dataset")
     best_combinations_df = best_combinations_df.sort_values(by=sort_column, ascending=ascending_order)
 
     st.dataframe(best_combinations_df)
 
     # Find the most common Member Function and Loss Function across all datasets
-    most_common_member_function = best_combinations_df["Member Function"].mode()[0]
-    most_common_loss_function = best_combinations_df["Loss Function"].mode()[0]
+    most_common_member_function = best_combinations_df["Membership function"].mode()[0]
+    most_common_loss_function = best_combinations_df["Loss function"].mode()[0]
 
     # Display the most common Member Function and Loss Function
-    st.write(f"**Most Common Member Function:** {most_common_member_function}")
-    st.write(f"**Most Common Loss Function:** {most_common_loss_function}")
+    st.write(f"**Most common membership function:** {most_common_member_function}")
+    st.write(f"**Most common loss function:** {most_common_loss_function}")
 
     # Display heatmaps
+    st.write("### Membership / Loss combination heatmap of weighted ROC AUC per dataset")
     st.pyplot(fig)
 
-with st.expander("ROC AUC Analysis over traces length for Membership/ Loss Function Combinations"):
+with st.expander("ROC AUC Analysis over prefix trace length for Membership/ Loss function combinations"):
     combined_results_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'combined_resultsNew.csv')
     if os.path.exists(combined_results_path):
         combined_results = pd.read_csv(combined_results_path)
 
         # Filteroptionen hinzufügen
         dataset_filter = st.selectbox("Filter by DatasetName:", combined_results["DatasetName"].unique())
-        member_function_filter = st.multiselect("Filter by MemberFunction:", combined_results["MemberFunction"].unique(), default=combined_results["MemberFunction"].unique())
+        member_function_filter = st.multiselect("Filter by MembershipFunction:", combined_results["MemberFunction"].unique(), default=combined_results["MemberFunction"].unique())
 
         # Daten filtern
         filtered_data = combined_results
@@ -265,8 +265,8 @@ with st.expander("ROC AUC Analysis over traces length for Membership/ Loss Funct
                             text=member_data["MemberFunction"],
                             hovertemplate=(
                                 "<b>Dataset:</b> " + dataset_filter + "<br>"
-                                "<b>MemberFunction:</b> %{text}<br>"
-                                "<b>Length:</b> %{x}<br>"
+                                "<b>Membership function:</b> %{text}<br>"
+                                "<b>Prefix trace length:</b> %{x}<br>"
                                 "<b>ROC AUC Score:</b> %{y}<extra></extra>"
                             )
                         ),
@@ -285,7 +285,7 @@ with st.expander("ROC AUC Analysis over traces length for Membership/ Loss Funct
             title_x=0.5
         )
 
-        fig.update_xaxes(title_text="Trace Length")
+        fig.update_xaxes(title_text="Prefix trace length")
         fig.update_yaxes(title_text="AUC ROC")
 
         # Plot anzeigen
@@ -294,7 +294,7 @@ with st.expander("ROC AUC Analysis over traces length for Membership/ Loss Funct
         st.error("Die Datei 'combined_results.csv' wurde nicht gefunden.")
 
 # ROC AUC Analysis
-with st.expander("ROC AUC Analysis based on Length with varying parameters"):
+with st.expander("ROC AUC Analysis by membership function for different learning rates"):
     combined_results_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'combined_results_lr_batch_epoch.csv')
     if os.path.exists(combined_results_path):
         combined_results = pd.read_csv(combined_results_path)
@@ -316,9 +316,9 @@ with st.expander("ROC AUC Analysis based on Length with varying parameters"):
 
         fig, ax = plt.subplots(figsize=(10, 6))
         sns.heatmap(heatmap_data, annot=True, fmt=".2f", cmap="coolwarm", ax=ax)
-        ax.set_title("Heatmap of ROC AUC Scores by MemberFunction and LearningRate")
-        ax.set_xlabel("LearningRate")
-        ax.set_ylabel("MemberFunction")
+        ax.set_title("Heatmap of weighted ROC AUC Scores by Membership function and Learning rate")
+        ax.set_xlabel("Learning rate")
+        ax.set_ylabel("Membership function")
 
         st.pyplot(fig)
     else:
@@ -381,65 +381,14 @@ with st.expander("ROC AUC Analysis based on Length with varying parameters"):
                 )
 
     fig.update_layout(
-        title="ROC AUC Analysis for Varying LearningRates (MemberFunctions Split)",
+        title="ROC AUC Analysis by membership function for varying learning rates",
         height=800,
         width=800,
-        xaxis_title="Length",
-        yaxis_title="ROC AUC Score",
         showlegend=True,
-        legend_title="Learning Rates"
+        legend_title="Learning rates"
     )
 
     st.plotly_chart(fig)
-
-    # Variierende BatchSize und EpochSize analysieren
-    params = ["BatchSize", "EpochSize"]
-
-    for idx, param in enumerate(params):
-        constant_params = [p for p in params if p != param]
-
-        # Filtern von Datensätzen, bei denen nur der aktuelle Parameter variiert
-        unique_sets = combined_results.groupby(constant_params).filter(
-            lambda g: len(g[param].unique()) > 1 and all(len(g[p].unique()) == 1 for p in constant_params)
-        )
-
-        if not unique_sets.empty:
-            const_values = {
-                constant_params[0]: unique_sets[constant_params[0]].unique()[0]
-            }
-            st.subheader(f"ROC AUC Analysis for varying {param}")
-            st.text(f"{constant_params[0]}: {const_values[constant_params[0]]}")
-
-            fig = go.Figure()
-
-            for value in unique_sets[param].unique():
-                subset = unique_sets[unique_sets[param] == value]
-                if not subset.empty:
-                    fig.add_trace(
-                        go.Scatter(
-                            x=subset["LENGHT"],
-                            y=subset["ROC_AUC_SCORE"],
-                            mode="lines+markers",
-                            name=f"{param}: {value}",
-                            hovertemplate=(
-                                f"<b>Length:</b> %{{x}}<br>"
-                                f"<b>ROC AUC Score:</b> %{{y}}<br>"
-                                f"<b>{param}:</b> {value}<extra></extra>"
-                            )
-                        )
-                    )
-
-            fig.update_layout(
-                title=f"ROC AUC Score vs Length ({param} varying)",
-                xaxis_title="Length",
-                yaxis_title="ROC AUC Score",
-                height=600,
-                showlegend=True
-            )
-
-            st.plotly_chart(fig)
-        else:
-            st.warning(f"No data found for varying {param} with fixed other parameters.")
 
 # Datei-Pfade
 agg_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'agg_combined_results_lr_batch.csv')
@@ -455,7 +404,7 @@ if not os.path.exists(combined_file):
 agg_data = pd.read_csv(agg_file)
 combined_data = pd.read_csv(combined_file)
 
-with st.expander("Heatmap and Marker-Line Graphs for ROC AUC Analysis"):
+with st.expander("ROC AUC Analysis of learning rate and batch size combinations"):
     # Heatmap erstellen
     # Daten pivotieren
     heatmap_data = agg_data.pivot_table(
@@ -465,19 +414,23 @@ with st.expander("Heatmap and Marker-Line Graphs for ROC AUC Analysis"):
         aggfunc='mean',
     )
 
+    heatmap_data.columns = [f"{lr:.6f}" for lr in heatmap_data.columns]
+
     # Einträge gleichen Werte von DatasetName, MemberFunction, LossFunction extrahieren
     unique_values = agg_data[['DatasetName', 'MemberFunction', 'LossFunction']].drop_duplicates()
-    description = ", ".join(
-        [f"{col}: {', '.join(unique_values[col].unique())}" for col in unique_values]
+    description = "<br>".join(
+        [f"<b>{col}:</b> {', '.join(unique_values[col].unique())}" for col in unique_values]
     )
-    st.text(f"Filter: {description}")
+
+    # Füge nach "Filter:" einen Absatz (Leere Zeile) hinzu und zeige die Beschreibung mit HTML an
+    st.markdown(f"Filter:<br>{description}", unsafe_allow_html=True)
 
     # Heatmap plotten
     fig, ax = plt.subplots(figsize=(10, 6))
     sns.heatmap(heatmap_data, annot=True, fmt=".2f", cmap="coolwarm", ax=ax)
-    ax.set_title("ROC AUC Heatmap")
-    ax.set_xlabel("LearningRate")
-    ax.set_ylabel("BatchSize")
+    ax.set_title("weighted ROC AUC Heatmap")
+    ax.set_xlabel("Learning rate")
+    ax.set_ylabel("Batch size")
     st.pyplot(fig)
 
     # Farbzuweisungen aus der Plotly-Palette
@@ -499,11 +452,13 @@ with st.expander("Heatmap and Marker-Line Graphs for ROC AUC Analysis"):
 
     # BatchSize Graphen in 2x2 angeordnet, gefiltert nach BatchSize
     rows, cols = 2, 2
-    lr_fig = make_subplots(rows=rows, cols=cols, subplot_titles=[f"BatchSize: {bs}" for bs in unique_batch_sizes[:rows * cols]])
+    sorted_batch_sizes = sorted(unique_batch_sizes, reverse=True)
+    lr_fig = make_subplots(rows=rows, cols=cols, subplot_titles=[f"BatchSize: {bs}" for bs in sorted_batch_sizes[:rows * cols]])
 
-    for i, bs in enumerate(unique_batch_sizes[:rows * cols]):
+    for i, bs in enumerate(sorted_batch_sizes[:rows * cols]):
         subset = combined_data[combined_data['BatchSize'] == bs]
-        for lr in subset['LearningRate'].unique():
+        sorted_lr = sorted(subset['LearningRate'].unique(), reverse=True)
+        for lr in sorted_lr:
             lr_subset = subset[subset['LearningRate'] == lr]
             row = (i // cols) + 1
             col = (i % cols) + 1
@@ -511,19 +466,19 @@ with st.expander("Heatmap and Marker-Line Graphs for ROC AUC Analysis"):
                 x=lr_subset['LENGHT'],
                 y=lr_subset['ROC_AUC_SCORE'],
                 mode='lines+markers',
-                name=f"LR: {lr}" if i == legend_bs_idx else None,
+                name=f"LR: {lr:.6f}" if i == legend_bs_idx else None,
                 showlegend=(i == legend_bs_idx),
                 line=dict(color=learning_rate_colors[lr]),
                 hovertemplate=(
-                    f"<b>Length:</b> %{{x}}<br>"
+                    f"<b>Prefix trace length:</b> %{{x}}<br>"
                     f"<b>ROC AUC Score:</b> %{{y}}<br>"
-                    f"<b>LearningRate:</b> {lr}<extra></extra>"
+                    f"<b>Learning rate:</b> {lr:.6f}<extra></extra>"
                 )
             ), row=row, col=col)
 
     lr_fig.update_layout(
-        title="ROC AUC Scores vs Length (Filtered by BatchSize)",
-        xaxis_title="Length",
+        title="ROC AUC Scores vs prefix trace length by batch size",
+        xaxis_title="Prefix trace length",
         yaxis_title="ROC AUC Score",
         showlegend=True,
         height=800,
@@ -546,11 +501,13 @@ with st.expander("Heatmap and Marker-Line Graphs for ROC AUC Analysis"):
 
     # LearningRate Graphen in 2x3 angeordnet, gefiltert nach LearningRate
     rows, cols = 2, 3
-    bs_fig = make_subplots(rows=rows, cols=cols, subplot_titles=[f"LearningRate: {lr}" for lr in unique_learning_rates[:rows * cols]])
+    sorted_learning_rates = sorted(unique_learning_rates, reverse=True)
+    bs_fig = make_subplots(rows=rows, cols=cols, subplot_titles=[f"LearningRate: {lr:.6f}" for lr in sorted_learning_rates[:rows * cols]])
 
-    for i, lr in enumerate(unique_learning_rates[:rows * cols]):
+    for i, lr in enumerate(sorted_learning_rates[:rows * cols]):
         subset = combined_data[combined_data['LearningRate'] == lr]
-        for bs in subset['BatchSize'].unique():
+        sorted_br = sorted(subset['BatchSize'].unique(), reverse=True)
+        for bs in sorted_br:
             bs_subset = subset[subset['BatchSize'] == bs]
             row = (i // cols) + 1
             col = (i % cols) + 1
@@ -562,15 +519,15 @@ with st.expander("Heatmap and Marker-Line Graphs for ROC AUC Analysis"):
                 showlegend=(i == legend_lr_idx),
                 line=dict(color=batch_size_colors[bs]),
                 hovertemplate=(
-                    f"<b>Length:</b> %{{x}}<br>"
+                    f"<b>Prefix trace length:</b> %{{x}}<br>"
                     f"<b>ROC AUC Score:</b> %{{y}}<br>"
-                    f"<b>BatchSize:</b> {bs}<extra></extra>"
+                    f"<b>Batch size:</b> {bs}<extra></extra>"
                 )
             ), row=row, col=col)
 
     bs_fig.update_layout(
-        title="ROC AUC Scores vs Length (Filtered by LearningRate)",
-        xaxis_title="Length",
+        title="ROC AUC Scores vs prefix trace length by learning rate",
+        xaxis_title="Prefix trace length",
         yaxis_title="ROC AUC Score",
         showlegend=True,
         height=800,
